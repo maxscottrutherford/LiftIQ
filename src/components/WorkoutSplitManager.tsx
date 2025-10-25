@@ -80,7 +80,7 @@ export function WorkoutSplitManager({ onSave, onCancel, initialSplit }: WorkoutS
           <div className="flex items-center space-x-3">
             <div className="relative w-8 h-8">
               <Image
-                src="/liftiq-logo.png"
+                src="/liftiq-logo-transparent.png"
                 alt="LiftIQ Logo"
                 fill
                 className="object-contain"

@@ -97,7 +97,7 @@ export function WorkoutSplitDashboard() {
         <div className="flex items-center space-x-4">
           <div className="relative w-12 h-12">
             <Image
-              src="/liftiq-logo.png"
+              src="/liftiq-logo-transparent.png"
               alt="LiftIQ Logo"
               fill
               className="object-contain"
@@ -190,10 +190,10 @@ export function WorkoutSplitDashboard() {
           <CardContent className="text-center py-12">
             <div className="relative w-20 h-20 mx-auto mb-6">
               <Image
-                src="/liftiq-logo.png"
+                src="/liftiq-logo-transparent.png"
                 alt="LiftIQ Logo"
                 fill
-                className="object-contain opacity-60"
+                className="object-contain"
               />
             </div>
             <h3 className="text-xl font-semibold mb-2">No Workout Splits Yet</h3>
