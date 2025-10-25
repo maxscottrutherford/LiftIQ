@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 10, "column": 0}, "map": {"version":3,"sources":["file:///Users/maxrutherford/Desktop/LiftIQ/src/app/page.tsx"],"sourcesContent":["\"use client\";\n\nimport { Button } from \"@mantine/core\";\n\nexport default function Home() {\n  return (\n    <div style={{ padding: '2rem', textAlign: 'center' }}>\n      <h1>Welcome to LiftIQ</h1>\n      <p>Testing Mantine integration...</p>\n      <Button>Test Button</Button>\n    </div>\n  );\n}\n"],"names":[],"mappings":";;;;;AAEA;AAFA;;;AAIe,SAAS;IACtB,qBACE,8OAAC;QAAI,OAAO;YAAE,SAAS;YAAQ,WAAW;QAAS;;0BACjD,8OAAC;0BAAG;;;;;;0BACJ,8OAAC;0BAAE;;;;;;0BACH,8OAAC,qLAAM;0BAAC;;;;;;;;;;;;AAGd","debugId":null}}]
+}
