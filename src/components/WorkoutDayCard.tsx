@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ExerciseCard } from './ExerciseCard';
 import { ExerciseForm } from './ExerciseForm';
 import { formDataToExercise } from '@/lib/workout-utils';
-import { Plus, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface WorkoutDayCardProps {
   workoutDay: WorkoutDay;
@@ -19,6 +19,7 @@ interface WorkoutDayCardProps {
 export function WorkoutDayCard({ workoutDay, onUpdate, onDelete, showActions = true }: WorkoutDayCardProps) {
   const [isAddingExercise, setIsAddingExercise] = useState(false);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
+  const [isExercisesExpanded, setIsExercisesExpanded] = useState(true);
 
   const handleAddExercise = (formData: ExerciseFormData) => {
     const newExercise = formDataToExercise(formData);
@@ -69,7 +70,8 @@ export function WorkoutDayCard({ workoutDay, onUpdate, onDelete, showActions = t
       workingSets: editingExercise.workingSets,
       repRangeMin: editingExercise.repRange.min,
       repRangeMax: editingExercise.repRange.max,
-      rpe: editingExercise.rpe,
+      intensityMetricType: editingExercise.intensityMetric.type || '',
+      intensityMetricValue: editingExercise.intensityMetric.value,
       restTime: editingExercise.restTime,
       notes: editingExercise.notes,
     };
@@ -88,7 +90,23 @@ export function WorkoutDayCard({ workoutDay, onUpdate, onDelete, showActions = t
     <Card className="w-full">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-xl">{workoutDay.name}</CardTitle>
+          <div 
+            className="flex items-center space-x-3 cursor-pointer flex-1"
+            onClick={() => setIsExercisesExpanded(!isExercisesExpanded)}
+          >
+            <CardTitle className="text-xl">{workoutDay.name}</CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+            >
+              {isExercisesExpanded ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
           {showActions && (
             <div className="flex space-x-1">
               <Button
@@ -108,43 +126,47 @@ export function WorkoutDayCard({ workoutDay, onUpdate, onDelete, showActions = t
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Exercises List */}
-        {workoutDay.exercises.length > 0 ? (
-          <div className="space-y-3">
-            {workoutDay.exercises.map((exercise) => (
-              <ExerciseCard
-                key={exercise.id}
-                exercise={exercise}
-                onEdit={handleEditExercise}
-                onDelete={handleDeleteExercise}
-                showActions={showActions}
+        {isExercisesExpanded && (
+          <>
+            {workoutDay.exercises.length > 0 ? (
+              <div className="space-y-3">
+                {workoutDay.exercises.map((exercise) => (
+                  <ExerciseCard
+                    key={exercise.id}
+                    exercise={exercise}
+                    onEdit={handleEditExercise}
+                    onDelete={handleDeleteExercise}
+                    showActions={showActions}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No exercises added yet</p>
+                <p className="text-sm">Click "Add Exercise" to get started</p>
+              </div>
+            )}
+
+            {/* Add Exercise Form */}
+            {isAddingExercise && (
+              <ExerciseForm
+                onSubmit={handleAddExercise}
+                onCancel={handleCancelAdd}
               />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            <p>No exercises added yet</p>
-            <p className="text-sm">Click "Add Exercise" to get started</p>
-          </div>
-        )}
+            )}
 
-        {/* Add Exercise Form */}
-        {isAddingExercise && (
-          <ExerciseForm
-            onSubmit={handleAddExercise}
-            onCancel={handleCancelAdd}
-          />
-        )}
-
-        {/* Add Exercise Button */}
-        {!isAddingExercise && showActions && (
-          <Button
-            variant="outline"
-            onClick={() => setIsAddingExercise(true)}
-            className="w-full"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Exercise
-          </Button>
+            {/* Add Exercise Button */}
+            {!isAddingExercise && showActions && (
+              <Button
+                variant="outline"
+                onClick={() => setIsAddingExercise(true)}
+                className="w-full"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Exercise
+              </Button>
+            )}
+          </>
         )}
       </CardContent>
     </Card>

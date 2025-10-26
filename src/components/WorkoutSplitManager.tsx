@@ -78,14 +78,6 @@ export function WorkoutSplitManager({ onSave, onCancel, initialSplit }: WorkoutS
             Back
           </Button>
           <div className="flex items-center space-x-3">
-            <div className="relative w-8 h-8">
-              <Image
-                src="/liftiq-logo-transparent.png"
-                alt="LiftIQ Logo"
-                fill
-                className="object-contain"
-              />
-            </div>
             <h1 className="text-3xl font-bold">
               {isEditing ? 'Edit Workout Split' : 'Create Workout Split'}
             </h1>

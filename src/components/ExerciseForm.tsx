@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ExerciseFormData } from '@/lib/types';
-import { validateExerciseForm, formatRestTime, exerciseTemplates } from '@/lib/workout-utils';
+import { validateExerciseForm, formatRestTime } from '@/lib/workout-utils';
 
 interface ExerciseFormProps {
   onSubmit: (exercise: ExerciseFormData) => void;
@@ -19,12 +19,13 @@ interface ExerciseFormProps {
 export function ExerciseForm({ onSubmit, onCancel, initialData, isEditing = false }: ExerciseFormProps) {
   const [formData, setFormData] = useState<ExerciseFormData>({
     name: initialData?.name || '',
-    warmupSets: initialData?.warmupSets ?? 2,
-    workingSets: initialData?.workingSets ?? 3,
-    repRangeMin: initialData?.repRangeMin ?? 8,
-    repRangeMax: initialData?.repRangeMax ?? 12,
-    rpe: initialData?.rpe ?? 8,
-    restTime: initialData?.restTime ?? 2,
+    warmupSets: initialData?.warmupSets ?? '',
+    workingSets: initialData?.workingSets ?? '',
+    repRangeMin: initialData?.repRangeMin ?? '',
+    repRangeMax: initialData?.repRangeMax ?? '',
+    intensityMetricType: initialData?.intensityMetricType ?? '',
+    intensityMetricValue: initialData?.intensityMetricValue ?? '',
+    restTime: initialData?.restTime ?? '',
     notes: initialData?.notes || '',
   });
 
@@ -76,24 +77,6 @@ export function ExerciseForm({ onSubmit, onCancel, initialData, isEditing = fals
             />
           </div>
 
-          {/* Quick Templates */}
-          <div className="space-y-2">
-            <Label>Quick Templates</Label>
-            <div className="flex flex-wrap gap-2">
-              {exerciseTemplates.map((template, index) => (
-                <Button
-                  key={index}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleTemplateSelect(template)}
-                >
-                  {template.name}
-                </Button>
-              ))}
-            </div>
-          </div>
-
           {/* Sets */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -103,7 +86,7 @@ export function ExerciseForm({ onSubmit, onCancel, initialData, isEditing = fals
                 type="number"
                 min="0"
                 value={formData.warmupSets}
-                onChange={(e) => updateFormData('warmupSets', parseInt(e.target.value) || 0)}
+                onChange={(e) => updateFormData('warmupSets', e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -113,7 +96,7 @@ export function ExerciseForm({ onSubmit, onCancel, initialData, isEditing = fals
                 type="number"
                 min="1"
                 value={formData.workingSets}
-                onChange={(e) => updateFormData('workingSets', parseInt(e.target.value) || 1)}
+                onChange={(e) => updateFormData('workingSets', e.target.value)}
                 required
               />
             </div>
@@ -128,7 +111,7 @@ export function ExerciseForm({ onSubmit, onCancel, initialData, isEditing = fals
                 type="number"
                 min="1"
                 value={formData.repRangeMin}
-                onChange={(e) => updateFormData('repRangeMin', parseInt(e.target.value) || 1)}
+                onChange={(e) => updateFormData('repRangeMin', e.target.value)}
                 required
               />
             </div>
@@ -139,24 +122,49 @@ export function ExerciseForm({ onSubmit, onCancel, initialData, isEditing = fals
                 type="number"
                 min="1"
                 value={formData.repRangeMax}
-                onChange={(e) => updateFormData('repRangeMax', parseInt(e.target.value) || 1)}
+                onChange={(e) => updateFormData('repRangeMax', e.target.value)}
                 required
               />
             </div>
           </div>
 
-          {/* RPE */}
+          {/* Intensity Metric */}
           <div className="space-y-2">
-            <Label htmlFor="rpe">RPE (1-10) *</Label>
-            <Input
-              id="rpe"
-              type="number"
-              min="1"
-              max="10"
-              value={formData.rpe}
-              onChange={(e) => updateFormData('rpe', parseInt(e.target.value) || 1)}
-              required
-            />
+            <Label htmlFor="intensityMetricType">Intensity Metric</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <select
+                  id="intensityMetricType"
+                  value={formData.intensityMetricType}
+                  onChange={(e) => updateFormData('intensityMetricType', e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="">None</option>
+                  <option value="rpe">RPE (Rate of Perceived Exertion)</option>
+                  <option value="rir">RIR (Reps in Reserve)</option>
+                </select>
+              </div>
+              <div>
+                <Input
+                  id="intensityMetricValue"
+                  type="number"
+                  min={formData.intensityMetricType === 'rpe' ? '1' : '0'}
+                  max="10"
+                  value={formData.intensityMetricValue}
+                  onChange={(e) => updateFormData('intensityMetricValue', e.target.value)}
+                  placeholder={formData.intensityMetricType === 'rpe' ? '1-10' : formData.intensityMetricType === 'rir' ? '0-10' : 'Select metric first'}
+                  disabled={!formData.intensityMetricType}
+                />
+              </div>
+            </div>
+            {formData.intensityMetricType && (
+              <p className="text-xs text-muted-foreground">
+                {formData.intensityMetricType === 'rpe' 
+                  ? 'RPE: How hard the set felt (1: easy, 10: max effort)'
+                  : 'RIR: How many more reps you could have done (0: no reps left, 10: 10 reps left)'
+                }
+              </p>
+            )}
           </div>
 
           {/* Rest Time */}
@@ -169,13 +177,10 @@ export function ExerciseForm({ onSubmit, onCancel, initialData, isEditing = fals
                 min="0"
                 step="0.5"
                 value={formData.restTime}
-                onChange={(e) => updateFormData('restTime', parseFloat(e.target.value) || 0)}
+                onChange={(e) => updateFormData('restTime', e.target.value)}
                 required
                 className="flex-1"
               />
-              <span className="text-sm text-muted-foreground">
-                ({formatRestTime(formData.restTime)})
-              </span>
             </div>
           </div>
 

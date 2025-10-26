@@ -9,7 +9,10 @@ export interface Exercise {
     min: number;
     max: number;
   };
-  rpe: number;
+  intensityMetric: {
+    type: 'rpe' | 'rir' | '';
+    value: number;
+  };
   restTime: number; // in minutes
   notes?: string;
 }
@@ -33,12 +36,13 @@ export interface WorkoutSplit {
 // Form input types
 export interface ExerciseFormData {
   name: string;
-  warmupSets: number;
-  workingSets: number;
-  repRangeMin: number;
-  repRangeMax: number;
-  rpe: number;
-  restTime: number; // in minutes
+  warmupSets: number | string;
+  workingSets: number | string;
+  repRangeMin: number | string;
+  repRangeMax: number | string;
+  intensityMetricType: 'rpe' | 'rir' | '';
+  intensityMetricValue: number | string;
+  restTime: number | string; // in minutes
   notes?: string;
 }
 

@@ -6,13 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { WorkoutSplitCard } from './WorkoutSplitCard';
 import { WorkoutSplitManager } from './WorkoutSplitManager';
-import { Plus, Dumbbell } from 'lucide-react';
+import { Plus, Dumbbell, ChevronDown, ChevronUp } from 'lucide-react';
 import Image from 'next/image';
 
 export function WorkoutSplitDashboard() {
   const [splits, setSplits] = useState<WorkoutSplit[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [editingSplit, setEditingSplit] = useState<WorkoutSplit | null>(null);
+  const [isStatsExpanded, setIsStatsExpanded] = useState(true);
 
   // Load splits from localStorage on mount
   useEffect(() => {
@@ -95,15 +96,6 @@ export function WorkoutSplitDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <div className="relative w-12 h-12">
-            <Image
-              src="/liftiq-logo-transparent.png"
-              alt="LiftIQ Logo"
-              fill
-              className="object-contain"
-              priority
-            />
-          </div>
           <div>
             <h1 className="text-3xl font-bold flex items-center space-x-2">
               <span>LiftIQ</span>
@@ -121,54 +113,80 @@ export function WorkoutSplitDashboard() {
 
       {/* Stats Overview */}
       {splits.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-primary">{splits.length}</p>
-                <p className="text-sm text-muted-foreground">Total Splits</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-accent">
-                  {splits.reduce((total, split) => total + split.days.length, 0)}
-                </p>
-                <p className="text-sm text-muted-foreground">Workout Days</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-success">
-                  {splits.reduce((total, split) => 
-                    total + split.days.reduce((dayTotal, day) => dayTotal + day.exercises.length, 0), 0
-                  )}
-                </p>
-                <p className="text-sm text-muted-foreground">Total Exercises</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-secondary">
-                  {splits.length > 0 
-                    ? Math.round(
-                        splits.reduce((total, split) => 
-                          total + split.days.reduce((dayTotal, day) => dayTotal + day.exercises.length, 0), 0
-                        ) / splits.reduce((total, split) => total + split.days.length, 0)
-                      )
-                    : 0
-                  }
-                </p>
-                <p className="text-sm text-muted-foreground">Avg Exercises/Day</p>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Statistics</h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsStatsExpanded(!isStatsExpanded)}
+              className="flex items-center space-x-2"
+            >
+              {isStatsExpanded ? (
+                <>
+                  <ChevronUp className="h-4 w-4" />
+                  <span>Hide Stats</span>
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="h-4 w-4" />
+                  <span>Show Stats</span>
+                </>
+              )}
+            </Button>
+          </div>
+          
+          {isStatsExpanded && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-primary">{splits.length}</p>
+                    <p className="text-sm text-muted-foreground">Total Splits</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-accent">
+                      {splits.reduce((total, split) => total + split.days.length, 0)}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Workout Days</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-success">
+                      {splits.reduce((total, split) => 
+                        total + split.days.reduce((dayTotal, day) => dayTotal + day.exercises.length, 0), 0
+                      )}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Total Exercises</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-secondary">
+                      {splits.length > 0 
+                        ? Math.round(
+                            splits.reduce((total, split) => 
+                              total + split.days.reduce((dayTotal, day) => dayTotal + day.exercises.length, 0), 0
+                            ) / splits.reduce((total, split) => total + split.days.length, 0)
+                          )
+                        : 0
+                      }
+                    </p>
+                    <p className="text-sm text-muted-foreground">Avg Exercises/Day</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       )}
 
@@ -188,19 +206,11 @@ export function WorkoutSplitDashboard() {
       ) : (
         <Card>
           <CardContent className="text-center py-12">
-            <div className="relative w-20 h-20 mx-auto mb-6">
-              <Image
-                src="/liftiq-logo-transparent.png"
-                alt="LiftIQ Logo"
-                fill
-                className="object-contain"
-              />
-            </div>
             <h3 className="text-xl font-semibold mb-2">No Workout Splits Yet</h3>
             <p className="text-muted-foreground mb-6">
               Create your first workout split to get started with organizing your training routine.
             </p>
-            <Button onClick={handleCreateSplit} className="flex items-center space-x-2">
+            <Button onClick={handleCreateSplit} className="flex items-center space-x-2 mx-auto">
               <Plus className="h-4 w-4" />
               <span>Create Your First Split</span>
             </Button>
