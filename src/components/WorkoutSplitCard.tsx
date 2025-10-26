@@ -9,7 +9,7 @@ interface WorkoutSplitCardProps {
   split: WorkoutSplit;
   onEdit: (split: WorkoutSplit) => void;
   onDelete: (splitId: string) => void;
-  onStart: (split: WorkoutSplit) => void;
+  onStart: (split: WorkoutSplit, dayId: string) => void;
 }
 
 export function WorkoutSplitCard({ split, onEdit, onDelete, onStart }: WorkoutSplitCardProps) {
@@ -66,35 +66,62 @@ export function WorkoutSplitCard({ split, onEdit, onDelete, onStart }: WorkoutSp
         {/* Days List */}
         <div className="space-y-2">
           <h4 className="font-medium text-sm text-muted-foreground">Workout Days:</h4>
-          <div className="flex flex-wrap gap-2">
-            {split.days.map((day) => (
-              <div
-                key={day.id}
-                className="px-3 py-1 bg-muted rounded-full text-sm font-medium"
-              >
-                {day.name} ({day.exercises.length})
-              </div>
-            ))}
+          <div className="space-y-2">
+            {split.days.map((day) => {
+              const isRestDay = day.name === 'Rest Day';
+              return (
+                <div
+                  key={day.id}
+                  className={`flex items-center justify-between p-2 rounded-lg ${
+                    isRestDay ? 'bg-muted/50 border border-muted' : 'bg-muted'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <span className={`font-medium text-sm ${isRestDay ? 'text-muted-foreground' : ''}`}>
+                      {day.name}
+                    </span>
+                    {!isRestDay && (
+                      <span className="text-xs text-muted-foreground">({day.exercises.length} exercises)</span>
+                    )}
+                    {isRestDay && (
+                      <span className="text-xs text-muted-foreground">(Rest Day)</span>
+                    )}
+                  </div>
+                  {!isRestDay && (
+                    <Button
+                      size="sm"
+                      onClick={() => onStart(split, day.id)}
+                      className="h-7 px-3"
+                    >
+                      <Play className="h-3 w-3 mr-1" />
+                      Start
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
         {/* Actions */}
         <div className="flex space-x-2">
           <Button 
-            onClick={() => onStart(split)}
-            className="flex-1"
-            size="sm"
-          >
-            <Play className="h-4 w-4 mr-2" />
-            Start Workout
-          </Button>
-          <Button 
             variant="outline" 
             onClick={() => onEdit(split)}
             size="sm"
+            className="flex-1"
           >
             <Edit className="h-4 w-4 mr-2" />
-            Edit
+            Edit Split
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={() => onDelete(split.id)}
+            size="sm"
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
           </Button>
         </div>
 

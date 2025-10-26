@@ -86,26 +86,32 @@ export function WorkoutDayCard({ workoutDay, onUpdate, onDelete, showActions = t
     );
   }
 
+  const isRestDay = workoutDay.name === 'Rest Day';
+
   return (
-    <Card className="w-full">
+    <Card className={`w-full ${isRestDay ? 'border-muted bg-muted/20' : ''}`}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div 
             className="flex items-center space-x-3 cursor-pointer flex-1"
-            onClick={() => setIsExercisesExpanded(!isExercisesExpanded)}
+            onClick={() => !isRestDay && setIsExercisesExpanded(!isExercisesExpanded)}
           >
-            <CardTitle className="text-xl">{workoutDay.name}</CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0"
-            >
-              {isExercisesExpanded ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </Button>
+            <CardTitle className={`text-xl ${isRestDay ? 'text-muted-foreground' : ''}`}>
+              {workoutDay.name}
+            </CardTitle>
+            {!isRestDay && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+              >
+                {isExercisesExpanded ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </Button>
+            )}
           </div>
           {showActions && (
             <div className="flex space-x-1">
@@ -120,13 +126,26 @@ export function WorkoutDayCard({ workoutDay, onUpdate, onDelete, showActions = t
             </div>
           )}
         </div>
-        <p className="text-sm text-muted-foreground">
-          {workoutDay.exercises.length} exercise{workoutDay.exercises.length !== 1 ? 's' : ''}
-        </p>
+        {isRestDay ? (
+          <p className="text-sm text-muted-foreground">
+            Take a break and let your muscles recover
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {workoutDay.exercises.length} exercise{workoutDay.exercises.length !== 1 ? 's' : ''}
+          </p>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
+        {isRestDay && (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">
+              💤 Rest and recovery are essential for muscle growth and performance
+            </p>
+          </div>
+        )}
         {/* Exercises List */}
-        {isExercisesExpanded && (
+        {!isRestDay && isExercisesExpanded && (
           <>
             {workoutDay.exercises.length > 0 ? (
               <div className="space-y-3">

@@ -41,6 +41,16 @@ export function WorkoutSplitManager({ onSave, onCancel, initialSplit }: WorkoutS
     setIsAddingDay(false);
   };
 
+  const handleAddRestDay = () => {
+    const restDay: WorkoutDay = {
+      id: generateId(),
+      name: 'Rest Day',
+      exercises: [],
+    };
+    
+    setWorkoutDays(prev => [...prev, restDay]);
+  };
+
   const handleUpdateDay = (updatedDay: WorkoutDay) => {
     setWorkoutDays(prev => 
       prev.map(day => day.id === updatedDay.id ? updatedDay : day)
@@ -126,14 +136,24 @@ export function WorkoutSplitManager({ onSave, onCancel, initialSplit }: WorkoutS
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-semibold">Workout Days</h2>
-          <Button
-            onClick={() => setIsAddingDay(true)}
-            disabled={isAddingDay}
-            className="flex items-center space-x-2"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Add Day</span>
-          </Button>
+          <div className="flex space-x-2">
+            <Button
+              onClick={handleAddRestDay}
+              variant="outline"
+              className="flex items-center space-x-2"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Rest Day</span>
+            </Button>
+            <Button
+              onClick={() => setIsAddingDay(true)}
+              disabled={isAddingDay}
+              className="flex items-center space-x-2"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add Day</span>
+            </Button>
+          </div>
         </div>
 
         {/* Add New Day Form */}

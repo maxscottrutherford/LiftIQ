@@ -1,21 +1,29 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { WorkoutSplit } from '@/lib/types';
+import { WorkoutSplit, WorkoutSession } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { WorkoutSplitCard } from './WorkoutSplitCard';
 import { WorkoutSplitManager } from './WorkoutSplitManager';
-import { Plus, Dumbbell, ChevronDown, ChevronUp } from 'lucide-react';
+import { WorkoutSessionManager } from './WorkoutSessionManager';
+import { WorkoutSessionHistory } from './WorkoutSessionHistory';
+import { WorkoutSessionDetails } from './WorkoutSessionDetails';
+import { ThemeToggle } from './ThemeToggle';
+import { Plus, Dumbbell, ChevronDown, ChevronUp, History, BarChart3 } from 'lucide-react';
 import Image from 'next/image';
 
 export function WorkoutSplitDashboard() {
   const [splits, setSplits] = useState<WorkoutSplit[]>([]);
+  const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [editingSplit, setEditingSplit] = useState<WorkoutSplit | null>(null);
   const [isStatsExpanded, setIsStatsExpanded] = useState(true);
+  const [currentView, setCurrentView] = useState<'dashboard' | 'history' | 'session' | 'session-details'>('dashboard');
+  const [activeSession, setActiveSession] = useState<{ split: WorkoutSplit; dayId: string } | null>(null);
+  const [selectedSession, setSelectedSession] = useState<WorkoutSession | null>(null);
 
-  // Load splits from localStorage on mount
+  // Load splits and sessions from localStorage on mount
   useEffect(() => {
     const savedSplits = localStorage.getItem('workoutSplits');
     if (savedSplits) {
@@ -34,14 +42,42 @@ export function WorkoutSplitDashboard() {
         console.error('Error loading workout splits:', error);
       }
     }
+
+    const savedSessions = localStorage.getItem('workoutSessions');
+    if (savedSessions) {
+      try {
+        const parsedSessions = JSON.parse(savedSessions).map((session: any) => ({
+          ...session,
+          startedAt: new Date(session.startedAt),
+          completedAt: session.completedAt ? new Date(session.completedAt) : undefined,
+          exerciseLogs: session.exerciseLogs.map((exercise: any) => ({
+            ...exercise,
+            completedAt: exercise.completedAt ? new Date(exercise.completedAt) : undefined,
+            sets: exercise.sets.map((set: any) => ({
+              ...set,
+              completedAt: set.completedAt ? new Date(set.completedAt) : undefined,
+            }))
+          }))
+        }));
+        setSessions(parsedSessions);
+      } catch (error) {
+        console.error('Error loading workout sessions:', error);
+      }
+    }
   }, []);
 
-  // Save splits to localStorage whenever splits change
+  // Save splits and sessions to localStorage whenever they change
   useEffect(() => {
     if (splits.length > 0) {
       localStorage.setItem('workoutSplits', JSON.stringify(splits));
     }
   }, [splits]);
+
+  useEffect(() => {
+    if (sessions.length > 0) {
+      localStorage.setItem('workoutSessions', JSON.stringify(sessions));
+    }
+  }, [sessions]);
 
   const handleCreateSplit = () => {
     setEditingSplit(null);
@@ -71,9 +107,43 @@ export function WorkoutSplitDashboard() {
     }
   };
 
-  const handleStartWorkout = (split: WorkoutSplit) => {
-    // TODO: Implement workout session functionality
-    alert(`Starting workout: ${split.name}\n\nThis feature will be implemented next!`);
+  const handleStartWorkout = (split: WorkoutSplit, dayId: string) => {
+    setActiveSession({ split, dayId });
+    setCurrentView('session');
+  };
+
+  const handleCompleteSession = (session: WorkoutSession) => {
+    setSessions(prev => [...prev, session]);
+    setActiveSession(null);
+    setCurrentView('dashboard');
+  };
+
+  const handleCancelSession = () => {
+    setActiveSession(null);
+    setCurrentView('dashboard');
+  };
+
+  const handleViewHistory = () => {
+    setCurrentView('history');
+  };
+
+  const handleViewSession = (session: WorkoutSession) => {
+    setSelectedSession(session);
+    setCurrentView('session-details');
+  };
+
+  const handleDeleteSession = (sessionId: string) => {
+    setSessions(prev => prev.filter(s => s.id !== sessionId));
+  };
+
+  const handleBackToHistory = () => {
+    setSelectedSession(null);
+    setCurrentView('history');
+  };
+
+  const handleBackToDashboard = () => {
+    setCurrentView('dashboard');
+    setSelectedSession(null);
   };
 
   const handleCancel = () => {
@@ -81,12 +151,45 @@ export function WorkoutSplitDashboard() {
     setEditingSplit(null);
   };
 
+  // Render different views based on current state
   if (isCreating) {
     return (
       <WorkoutSplitManager
         onSave={handleSaveSplit}
         onCancel={handleCancel}
         initialSplit={editingSplit || undefined}
+      />
+    );
+  }
+
+  if (currentView === 'session' && activeSession) {
+    return (
+      <WorkoutSessionManager
+        split={activeSession.split}
+        dayId={activeSession.dayId}
+        onComplete={handleCompleteSession}
+        onCancel={handleCancelSession}
+        previousSessions={sessions}
+      />
+    );
+  }
+
+  if (currentView === 'history') {
+    return (
+      <WorkoutSessionHistory
+        sessions={sessions}
+        onViewSession={handleViewSession}
+        onDeleteSession={handleDeleteSession}
+        onBackToDashboard={handleBackToDashboard}
+      />
+    );
+  }
+
+  if (currentView === 'session-details' && selectedSession) {
+    return (
+      <WorkoutSessionDetails
+        session={selectedSession}
+        onBack={handleBackToHistory}
       />
     );
   }
@@ -100,15 +203,25 @@ export function WorkoutSplitDashboard() {
             <h1 className="text-3xl font-bold flex items-center space-x-2">
               <span>LiftIQ</span>
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-muted-foreground mt-1 hidden sm:block">
               Create and manage your workout routines
             </p>
           </div>
         </div>
-        <Button onClick={handleCreateSplit} className="flex items-center space-x-2">
-          <Plus className="h-4 w-4" />
-          <span>Create Split</span>
-        </Button>
+        <div className="flex space-x-2">
+          <Button 
+            variant="outline" 
+            onClick={handleViewHistory}
+            className="flex items-center space-x-2"
+          >
+            <History className="h-4 w-4" />
+            <span>Past Lifts</span>
+          </Button>
+          <Button onClick={handleCreateSplit} className="flex items-center space-x-2">
+            <Plus className="h-4 w-4" />
+            <span>Create Split</span>
+          </Button>
+        </div>
       </div>
 
       {/* Stats Overview */}
@@ -217,6 +330,7 @@ export function WorkoutSplitDashboard() {
           </CardContent>
         </Card>
       )}
+      <ThemeToggle />
     </div>
   );
 }
