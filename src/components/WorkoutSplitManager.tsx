@@ -1,16 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { WorkoutSplit, WorkoutDay, WorkoutDayFormData } from '@/lib/types';
+import { WorkoutSplit, WorkoutDay } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { WorkoutDayCard } from './WorkoutDayCard';
-import { formDataToWorkoutDay, generateId } from '@/lib/workout-utils';
+import { generateId } from '@/lib/workout-utils';
 import { Plus, Save, ArrowLeft } from 'lucide-react';
-import Image from 'next/image';
 
 interface WorkoutSplitManagerProps {
   onSave: (split: WorkoutSplit) => void;

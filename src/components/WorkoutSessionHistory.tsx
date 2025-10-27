@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { WorkoutSession } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatSessionDuration } from '@/lib/workout-utils';
@@ -10,12 +10,11 @@ import { ThemeToggle } from './ThemeToggle';
 import { 
   Calendar, 
   Clock, 
-  CheckCircle, 
-  TrendingUp, 
   BarChart3,
   Eye,
   Trash2,
-  ArrowLeft
+  ArrowLeft,
+  CheckCircle2
 } from 'lucide-react';
 
 interface WorkoutSessionHistoryProps {
@@ -26,11 +25,10 @@ interface WorkoutSessionHistoryProps {
 }
 
 export function WorkoutSessionHistory({ sessions, onViewSession, onDeleteSession, onBackToDashboard }: WorkoutSessionHistoryProps) {
-  const [filteredSessions, setFilteredSessions] = useState<WorkoutSession[]>(sessions);
   const [sortBy, setSortBy] = useState<'date' | 'duration' | 'split'>('date');
   const [filterSplit, setFilterSplit] = useState<string>('all');
 
-  useEffect(() => {
+  const filteredSessions = useMemo(() => {
     let filtered = [...sessions];
     
     // Filter by split
@@ -52,7 +50,7 @@ export function WorkoutSessionHistory({ sessions, onViewSession, onDeleteSession
       }
     });
     
-    setFilteredSessions(filtered);
+    return filtered;
   }, [sessions, sortBy, filterSplit]);
 
   const getUniqueSplits = () => {
@@ -240,7 +238,7 @@ function WorkoutSessionCard({ session, onView, onDelete }: WorkoutSessionCardPro
                 <span>{formatSessionDuration(session.totalDuration || 0)}</span>
               </div>
               <div className="flex items-center space-x-1">
-                <CheckCircle className="h-4 w-4" />
+                <CheckCircle2 className="h-4 w-4" />
                 <span>{completedSets}/{totalSets} sets</span>
               </div>
             </div>

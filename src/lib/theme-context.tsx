@@ -12,19 +12,20 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('light');
-
-  useEffect(() => {
+  // Initialize theme with a function to avoid calling during render
+  const [theme, setTheme] = useState<Theme>(() => {
     // Check localStorage for saved theme preference
-    const savedTheme = localStorage.getItem('liftiq-theme') as Theme;
-    if (savedTheme) {
-      setTheme(savedTheme);
-    } else {
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('liftiq-theme') as Theme;
+      if (savedTheme) {
+        return savedTheme;
+      }
       // Check system preference
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      setTheme(prefersDark ? 'dark' : 'light');
+      return prefersDark ? 'dark' : 'light';
     }
-  }, []);
+    return 'light';
+  });
 
   useEffect(() => {
     // Apply theme to document

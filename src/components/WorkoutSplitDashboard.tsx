@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { WorkoutSplit, WorkoutSession } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { WorkoutSplitCard } from './WorkoutSplitCard';
 import { WorkoutSplitManager } from './WorkoutSplitManager';
@@ -10,8 +10,16 @@ import { WorkoutSessionManager } from './WorkoutSessionManager';
 import { WorkoutSessionHistory } from './WorkoutSessionHistory';
 import { WorkoutSessionDetails } from './WorkoutSessionDetails';
 import { ThemeToggle } from './ThemeToggle';
-import { Plus, Dumbbell, ChevronDown, ChevronUp, History, BarChart3 } from 'lucide-react';
-import Image from 'next/image';
+import { Plus, ChevronDown, ChevronUp, History, Loader2 } from 'lucide-react';
+import { 
+  getWorkoutSplits, 
+  saveWorkoutSplit, 
+  updateWorkoutSplit, 
+  deleteWorkoutSplit,
+  getWorkoutSessions,
+  saveWorkoutSession,
+  deleteWorkoutSession
+} from '@/lib/supabase/workout-service';
 
 export function WorkoutSplitDashboard() {
   const [splits, setSplits] = useState<WorkoutSplit[]>([]);
@@ -22,62 +30,28 @@ export function WorkoutSplitDashboard() {
   const [currentView, setCurrentView] = useState<'dashboard' | 'history' | 'session' | 'session-details'>('dashboard');
   const [activeSession, setActiveSession] = useState<{ split: WorkoutSplit; dayId: string } | null>(null);
   const [selectedSession, setSelectedSession] = useState<WorkoutSession | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Load splits and sessions from localStorage on mount
+  // Load splits and sessions from Supabase on mount
   useEffect(() => {
-    const savedSplits = localStorage.getItem('workoutSplits');
-    if (savedSplits) {
+    const loadData = async () => {
+      setLoading(true);
       try {
-        const parsedSplits = JSON.parse(savedSplits).map((split: any) => ({
-          ...split,
-          createdAt: new Date(split.createdAt),
-          updatedAt: new Date(split.updatedAt),
-          days: split.days.map((day: any) => ({
-            ...day,
-            exercises: day.exercises || []
-          }))
-        }));
-        setSplits(parsedSplits);
+        const [loadedSplits, loadedSessions] = await Promise.all([
+          getWorkoutSplits(),
+          getWorkoutSessions()
+        ]);
+        setSplits(loadedSplits);
+        setSessions(loadedSessions);
       } catch (error) {
-        console.error('Error loading workout splits:', error);
+        console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
       }
-    }
+    };
 
-    const savedSessions = localStorage.getItem('workoutSessions');
-    if (savedSessions) {
-      try {
-        const parsedSessions = JSON.parse(savedSessions).map((session: any) => ({
-          ...session,
-          startedAt: new Date(session.startedAt),
-          completedAt: session.completedAt ? new Date(session.completedAt) : undefined,
-          exerciseLogs: session.exerciseLogs.map((exercise: any) => ({
-            ...exercise,
-            completedAt: exercise.completedAt ? new Date(exercise.completedAt) : undefined,
-            sets: exercise.sets.map((set: any) => ({
-              ...set,
-              completedAt: set.completedAt ? new Date(set.completedAt) : undefined,
-            }))
-          }))
-        }));
-        setSessions(parsedSessions);
-      } catch (error) {
-        console.error('Error loading workout sessions:', error);
-      }
-    }
+    loadData();
   }, []);
-
-  // Save splits and sessions to localStorage whenever they change
-  useEffect(() => {
-    if (splits.length > 0) {
-      localStorage.setItem('workoutSplits', JSON.stringify(splits));
-    }
-  }, [splits]);
-
-  useEffect(() => {
-    if (sessions.length > 0) {
-      localStorage.setItem('workoutSessions', JSON.stringify(sessions));
-    }
-  }, [sessions]);
 
   const handleCreateSplit = () => {
     setEditingSplit(null);
@@ -89,21 +63,30 @@ export function WorkoutSplitDashboard() {
     setIsCreating(true);
   };
 
-  const handleSaveSplit = (split: WorkoutSplit) => {
+  const handleSaveSplit = async (split: WorkoutSplit) => {
     if (editingSplit) {
-      // Update existing split
-      setSplits(prev => prev.map(s => s.id === split.id ? split : s));
+      // Update existing split in Supabase
+      const updated = await updateWorkoutSplit(split);
+      if (updated) {
+        setSplits(prev => prev.map(s => s.id === split.id ? updated : s));
+      }
     } else {
-      // Add new split
-      setSplits(prev => [...prev, split]);
+      // Save new split to Supabase
+      const saved = await saveWorkoutSplit(split);
+      if (saved) {
+        setSplits(prev => [...prev, saved]);
+      }
     }
     setIsCreating(false);
     setEditingSplit(null);
   };
 
-  const handleDeleteSplit = (splitId: string) => {
+  const handleDeleteSplit = async (splitId: string) => {
     if (confirm('Are you sure you want to delete this workout split?')) {
-      setSplits(prev => prev.filter(s => s.id !== splitId));
+      const success = await deleteWorkoutSplit(splitId);
+      if (success) {
+        setSplits(prev => prev.filter(s => s.id !== splitId));
+      }
     }
   };
 
@@ -112,8 +95,11 @@ export function WorkoutSplitDashboard() {
     setCurrentView('session');
   };
 
-  const handleCompleteSession = (session: WorkoutSession) => {
-    setSessions(prev => [...prev, session]);
+  const handleCompleteSession = async (session: WorkoutSession) => {
+    const saved = await saveWorkoutSession(session);
+    if (saved) {
+      setSessions(prev => [...prev, saved]);
+    }
     setActiveSession(null);
     setCurrentView('dashboard');
   };
@@ -132,8 +118,11 @@ export function WorkoutSplitDashboard() {
     setCurrentView('session-details');
   };
 
-  const handleDeleteSession = (sessionId: string) => {
-    setSessions(prev => prev.filter(s => s.id !== sessionId));
+  const handleDeleteSession = async (sessionId: string) => {
+    const success = await deleteWorkoutSession(sessionId);
+    if (success) {
+      setSessions(prev => prev.filter(s => s.id !== sessionId));
+    }
   };
 
   const handleBackToHistory = () => {
@@ -150,6 +139,20 @@ export function WorkoutSplitDashboard() {
     setIsCreating(false);
     setEditingSplit(null);
   };
+
+  // Show loading state while data is being fetched
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto space-y-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="flex flex-col items-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Loading your workouts...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Render different views based on current state
   if (isCreating) {

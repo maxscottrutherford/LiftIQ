@@ -162,7 +162,7 @@ export function WorkoutDayCard({ workoutDay, onUpdate, onDelete, showActions = t
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <p>No exercises added yet</p>
-                <p className="text-sm">Click "Add Exercise" to get started</p>
+                <p className="text-sm">Click &quot;Add Exercise&quot; to get started</p>
               </div>
             )}
 

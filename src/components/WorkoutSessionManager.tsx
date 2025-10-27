@@ -12,18 +12,14 @@ import {
   calculateSessionProgress, 
   getCurrentExerciseAndSet,
   completeWorkoutSession,
-  formatSessionDuration,
-  generateId
+  formatSessionDuration
 } from '@/lib/workout-utils';
 import { ThemeToggle } from './ThemeToggle';
 import { 
-  Play, 
-  Pause, 
   CheckCircle, 
   Clock, 
   ArrowLeft, 
   Save,
-  RotateCcw,
   Timer
 } from 'lucide-react';
 
@@ -36,16 +32,20 @@ interface WorkoutSessionManagerProps {
 }
 
 export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, previousSessions = [] }: WorkoutSessionManagerProps) {
-  const [session, setSession] = useState<WorkoutSession | null>(null);
+  // Initialize session on mount
+  const [session, setSession] = useState<WorkoutSession | null>(() => createWorkoutSession(split, dayId));
   const [isResting, setIsResting] = useState(false);
   const [restTimeRemaining, setRestTimeRemaining] = useState(0);
   const [sessionNotes, setSessionNotes] = useState('');
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
 
-  // Initialize session
+  // Update current time for duration display
   useEffect(() => {
-    const newSession = createWorkoutSession(split, dayId);
-    setSession(newSession);
-  }, [split, dayId]);
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Rest timer effect
   useEffect(() => {
@@ -171,7 +171,7 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
         <div className="flex items-center space-x-2">
           <Clock className="h-4 w-4" />
           <span className="text-sm font-medium">
-            {formatSessionDuration(Math.round((Date.now() - session.startedAt.getTime()) / (1000 * 60)))}
+            {formatSessionDuration(Math.round((currentTime - session.startedAt.getTime()) / (1000 * 60)))}
           </span>
         </div>
       </div>
@@ -292,7 +292,7 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
             <CheckCircle className="h-16 w-16 text-success mx-auto mb-4" />
             <h2 className="text-2xl font-bold mb-2">Workout Complete!</h2>
             <p className="text-muted-foreground mb-6">
-              Great job! You've completed all exercises in this workout.
+              Great job! You&apos;ve completed all exercises in this workout.
             </p>
             <div className="space-y-4">
               <div className="space-y-2">
