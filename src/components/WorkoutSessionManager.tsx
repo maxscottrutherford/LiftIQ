@@ -399,14 +399,14 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
                     Target: {originalExercise.repRange.min}-{originalExercise.repRange.max} reps
                   </div>
                 )}
-                {originalExercise?.intensityMetric?.type && originalExercise?.intensityMetric?.value && (
+                {originalExercise?.intensityMetric?.type && originalExercise?.intensityMetric?.value !== undefined && (
                   <div className="text-xs bg-secondary/10 px-2 py-1 rounded-md text-center">
                     Target {originalExercise.intensityMetric.type.toUpperCase()}: {originalExercise.intensityMetric.value}
                   </div>
                 )}
               </div>
             </div>
-            {originalExercise?.notes && (
+            {originalExercise?.notes && originalExercise.notes.trim() && (
               <div className="mt-2 text-sm bg-secondary/10 p-1 rounded-md text-center">
                 Note: {originalExercise.notes}
               </div>
@@ -593,8 +593,8 @@ function SetLoggingForm({ set, exercise, onComplete, onStartRest, onUndo, initia
     const setData: Partial<SetLog> = {
       weight: parsedWeight === undefined || isNaN(parsedWeight) ? undefined : parsedWeight,
       reps: parseInt(reps) || 0,
-      rpe: rpe ? parseInt(rpe) : undefined,
-      rir: rir ? parseInt(rir) : undefined,
+      rpe: rpe !== '' ? parseInt(rpe) : undefined,
+      rir: rir !== '' ? parseInt(rir) : undefined,
     };
     
     onComplete(setData);
