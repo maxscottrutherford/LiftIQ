@@ -20,7 +20,8 @@ import {
   Clock, 
   ArrowLeft, 
   Save,
-  Timer
+  Timer,
+  Undo2
 } from 'lucide-react';
 
 interface WorkoutSessionManagerProps {
@@ -38,6 +39,7 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
   const [restEndTime, setRestEndTime] = useState<number | null>(null);
   const [sessionNotes, setSessionNotes] = useState('');
   const [currentTime, setCurrentTime] = useState(() => Date.now());
+  const [lastUndoneSetData, setLastUndoneSetData] = useState<Partial<SetLog> | null>(null);
 
   // Update current time for duration display and rest timer
   useEffect(() => {
@@ -118,6 +120,65 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
       updatedSets[setIndex] = updatedSet;
       updatedExercise.sets = updatedSets;
       updatedExerciseLogs[exerciseIndex] = updatedExercise;
+      
+      return {
+        ...prev,
+        exerciseLogs: updatedExerciseLogs
+      };
+    });
+  };
+
+  // Check if there are any completed sets
+  const hasCompletedSets = () => {
+    if (!session) return false;
+    return session.exerciseLogs.some(exercise => 
+      exercise.sets.some(set => set.completed)
+    );
+  };
+
+  const handleUndoLastSet = () => {
+    setSession(prev => {
+      if (!prev) return prev;
+      
+      // Find the most recently completed set
+      let mostRecentSet: { exerciseIndex: number; setIndex: number; completedAt: Date; set: SetLog } | null = null;
+      
+      for (let exerciseIndex = 0; exerciseIndex < prev.exerciseLogs.length; exerciseIndex++) {
+        const exercise = prev.exerciseLogs[exerciseIndex];
+        for (let setIndex = 0; setIndex < exercise.sets.length; setIndex++) {
+          const set = exercise.sets[setIndex];
+          if (set.completed && set.completedAt) {
+            if (!mostRecentSet || set.completedAt > mostRecentSet.completedAt) {
+              mostRecentSet = { exerciseIndex, setIndex, completedAt: set.completedAt, set };
+            }
+          }
+        }
+      }
+      
+      if (!mostRecentSet) return prev;
+      
+      // Store the set's data before marking incomplete
+      const undoneSetData: Partial<SetLog> = {
+        weight: mostRecentSet.set.weight,
+        reps: mostRecentSet.set.reps,
+        rpe: mostRecentSet.set.rpe,
+        rir: mostRecentSet.set.rir,
+      };
+      setLastUndoneSetData(undoneSetData);
+      
+      // Mark the most recent set as incomplete
+      const updatedExerciseLogs = [...prev.exerciseLogs];
+      const updatedExercise = { ...updatedExerciseLogs[mostRecentSet.exerciseIndex] };
+      const updatedSets = [...updatedExercise.sets];
+      const updatedSet = { 
+        ...updatedSets[mostRecentSet.setIndex],
+        completed: false,
+        completedAt: undefined
+      };
+      
+      updatedSets[mostRecentSet.setIndex] = updatedSet;
+      updatedExercise.sets = updatedSets;
+      updatedExerciseLogs[mostRecentSet.exerciseIndex] = updatedExercise;
       
       return {
         ...prev,
@@ -226,39 +287,39 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
         <Card className="border-primary">
           <CardHeader>
             <CardTitle className="text-xl">{currentExercise.exerciseName}</CardTitle>
-            <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex flex-col gap-2">
               <p className="text-sm text-muted-foreground">
                 Set {currentSet.setNumber} of {currentExercise.sets.length} • {currentSet.type === 'warmup' ? 'Warmup' : 'Working'}
               </p>
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex gap-2 flex-wrap py-1 justify-center">
                 {originalExercise?.repRange && (
-                  <div className="text-xs bg-muted px-2 py-1 rounded-md">
+                  <div className="text-xs bg-secondary/10 px-2 py-1 rounded-md text-center">
                     Target: {originalExercise.repRange.min}-{originalExercise.repRange.max} reps
                   </div>
                 )}
                 {originalExercise?.intensityMetric?.type && originalExercise?.intensityMetric?.value && (
-                  <div className="text-xs bg-muted px-2 py-1 rounded-md">
+                  <div className="text-xs bg-secondary/10 px-2 py-1 rounded-md text-center">
                     Target {originalExercise.intensityMetric.type.toUpperCase()}: {originalExercise.intensityMetric.value}
                   </div>
                 )}
               </div>
             </div>
             {originalExercise?.notes && (
-              <div className="mt-2 text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-md">
-                {originalExercise.notes}
+              <div className="mt-2 text-sm bg-secondary/10 p-1 rounded-md text-center">
+                Note: {originalExercise.notes}
               </div>
             )}
           </CardHeader>
           <CardContent>
             {/* Most Recent Working Set */}
             {currentExercise && getMostRecentWorkingSet(currentExercise.exerciseId) && (
-              <div className="mb-6 p-4 bg-muted/50 rounded-lg border-l-4 border-l-primary">
+              <div className="mb-6 p-3 bg-muted/50 rounded-lg border-l-4 border-l-primary">
                 <h4 className="text-sm font-medium text-muted-foreground mb-2">Last Time</h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Weight:</span>
                     <span className="ml-2 font-medium">
-                      {getMostRecentWorkingSet(currentExercise.exerciseId)?.weight ? 
+                      {getMostRecentWorkingSet(currentExercise.exerciseId)?.weight !== undefined ? 
                         `${getMostRecentWorkingSet(currentExercise.exerciseId)!.weight} lbs` : 
                         'N/A'
                       }
@@ -267,19 +328,25 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
                   <div>
                     <span className="text-muted-foreground">Reps:</span>
                     <span className="ml-2 font-medium">
-                      {getMostRecentWorkingSet(currentExercise.exerciseId)?.reps || 'N/A'}
+                      {getMostRecentWorkingSet(currentExercise.exerciseId)?.reps !== undefined ? 
+                        getMostRecentWorkingSet(currentExercise.exerciseId)!.reps : 
+                        'N/A'}
                     </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">RPE:</span>
                     <span className="ml-2 font-medium">
-                      {getMostRecentWorkingSet(currentExercise.exerciseId)?.rpe || 'N/A'}
+                      {getMostRecentWorkingSet(currentExercise.exerciseId)?.rpe !== undefined ? 
+                        getMostRecentWorkingSet(currentExercise.exerciseId)!.rpe : 
+                        'N/A'}
                     </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">RIR:</span>
                     <span className="ml-2 font-medium">
-                      {getMostRecentWorkingSet(currentExercise.exerciseId)?.rir || 'N/A'}
+                      {getMostRecentWorkingSet(currentExercise.exerciseId)?.rir !== undefined ? 
+                        getMostRecentWorkingSet(currentExercise.exerciseId)!.rir : 
+                        'N/A'}
                     </span>
                   </div>
                 </div>
@@ -289,12 +356,18 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
             <SetLoggingForm
               set={currentSet}
               exercise={currentExercise}
-              onComplete={(setData) => handleCompleteSet(
-                currentPosition!.exerciseIndex, 
-                currentPosition!.setIndex, 
-                setData
-              )}
+              onComplete={(setData) => {
+                handleCompleteSet(
+                  currentPosition!.exerciseIndex, 
+                  currentPosition!.setIndex, 
+                  setData
+                );
+                setLastUndoneSetData(null); // Clear the stored data after completing
+              }}
               onStartRest={handleStartRest}
+              onUndo={handleUndoLastSet}
+              initialValues={lastUndoneSetData}
+              canUndo={hasCompletedSets()}
             />
           </CardContent>
         </Card>
@@ -387,13 +460,31 @@ interface SetLoggingFormProps {
   exercise: ExerciseLog;
   onComplete: (setData: Partial<SetLog>) => void;
   onStartRest: (restTimeMinutes: number) => void;
+  onUndo?: () => void;
+  initialValues?: Partial<SetLog> | null;
+  canUndo?: boolean;
 }
 
-function SetLoggingForm({ set, exercise, onComplete, onStartRest }: SetLoggingFormProps) {
+function SetLoggingForm({ set, exercise, onComplete, onStartRest, onUndo, initialValues, canUndo }: SetLoggingFormProps) {
   const [weight, setWeight] = useState<string>('');
   const [reps, setReps] = useState<string>('');
   const [rpe, setRpe] = useState<string>('');
   const [rir, setRir] = useState<string>('');
+
+  // Populate form with initial values when provided
+  useEffect(() => {
+    if (initialValues) {
+      setWeight(initialValues.weight?.toString() || '');
+      setReps(initialValues.reps?.toString() || '');
+      setRpe(initialValues.rpe?.toString() || '');
+      setRir(initialValues.rir?.toString() || '');
+    } else {
+      setWeight('');
+      setReps('');
+      setRpe('');
+      setRir('');
+    }
+  }, [initialValues]);
 
   const handleComplete = () => {
     const parsedWeight = weight === '' ? undefined : parseFloat(weight);
@@ -480,6 +571,17 @@ function SetLoggingForm({ set, exercise, onComplete, onStartRest }: SetLoggingFo
         <CheckCircle className="h-4 w-4 mr-2" />
         Complete Set
       </Button>
+      
+      {canUndo && onUndo && (
+        <Button 
+          onClick={onUndo}
+          variant="outline"
+          className="w-full"
+        >
+          <Undo2 className="h-4 w-4 mr-2" />
+          Previous Set
+        </Button>
+      )}
     </div>
   );
 }
