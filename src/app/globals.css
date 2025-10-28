@@ -63,4 +63,18 @@
     @apply bg-background text-foreground;
   }
   
+  /* Prevent Safari autozoom on input focus */
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+  
+  @media (min-width: 640px) {
+    input,
+    textarea,
+    select {
+      font-size: 14px !important;
+    }
+  }
 }
