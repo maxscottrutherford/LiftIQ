@@ -384,8 +384,9 @@ function SetLoggingForm({ set, exercise, onComplete, onStartRest }: SetLoggingFo
   const [rir, setRir] = useState<string>('');
 
   const handleComplete = () => {
+    const parsedWeight = weight === '' ? undefined : parseFloat(weight);
     const setData: Partial<SetLog> = {
-      weight: weight ? parseFloat(weight) : undefined,
+      weight: parsedWeight === undefined || isNaN(parsedWeight) ? undefined : parsedWeight,
       reps: parseInt(reps) || 0,
       rpe: rpe ? parseInt(rpe) : undefined,
       rir: rir ? parseInt(rir) : undefined,

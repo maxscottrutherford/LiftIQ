@@ -252,7 +252,7 @@ export function WorkoutSessionDetails({ session, onBack }: WorkoutSessionDetails
                           
                           {/* Set Data */}
                           <div className="flex flex-wrap gap-2 text-sm">
-                            {set.weight && (
+                            {set.weight !== undefined && (
                               <div className="flex items-center space-x-1">
                                 <Weight className="h-4 w-4" />
                                 <span>{set.weight} lbs</span>

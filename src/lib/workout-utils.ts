@@ -218,11 +218,15 @@ export const createSetLogsFromExercise = (exercise: Exercise): SetLog[] => {
 
 // Convert form data to set log
 export const formDataToSetLog = (formData: SetLogFormData, setNumber: number, type: 'warmup' | 'working'): SetLog => {
+  const weightValue = typeof formData.weight === 'string' 
+    ? (formData.weight.trim() === '' ? undefined : parseFloat(formData.weight))
+    : formData.weight;
+    
   return {
     id: generateId(),
     setNumber,
     type,
-    weight: typeof formData.weight === 'string' ? parseFloat(formData.weight) || undefined : formData.weight,
+    weight: weightValue === undefined || isNaN(weightValue) ? undefined : weightValue,
     reps: typeof formData.reps === 'string' ? parseInt(formData.reps) || 0 : formData.reps,
     rpe: typeof formData.rpe === 'string' ? parseInt(formData.rpe) || undefined : formData.rpe,
     rir: typeof formData.rir === 'string' ? parseInt(formData.rir) || undefined : formData.rir,
@@ -299,7 +303,10 @@ export const validateSetLogForm = (formData: SetLogFormData): string[] => {
   const errors: string[] = [];
   
   const reps = typeof formData.reps === 'string' ? parseInt(formData.reps) : formData.reps;
-  const weight = typeof formData.weight === 'string' ? parseFloat(formData.weight) : formData.weight;
+  const weightValue = typeof formData.weight === 'string' 
+    ? (formData.weight.trim() === '' ? undefined : parseFloat(formData.weight))
+    : formData.weight;
+  const weight = weightValue === undefined || isNaN(weightValue) ? undefined : weightValue;
   const rpe = typeof formData.rpe === 'string' ? parseInt(formData.rpe) : formData.rpe;
   const rir = typeof formData.rir === 'string' ? parseInt(formData.rir) : formData.rir;
   
