@@ -35,34 +35,24 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
   // Initialize session on mount
   const [session, setSession] = useState<WorkoutSession | null>(() => createWorkoutSession(split, dayId));
   const [isResting, setIsResting] = useState(false);
-  const [restTimeRemaining, setRestTimeRemaining] = useState(0);
+  const [restEndTime, setRestEndTime] = useState<number | null>(null);
   const [sessionNotes, setSessionNotes] = useState('');
   const [currentTime, setCurrentTime] = useState(() => Date.now());
 
-  // Update current time for duration display
+  // Update current time for duration display and rest timer
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentTime(Date.now());
-    }, 1000);
+      const now = Date.now();
+      setCurrentTime(now);
+      
+      // Check if rest time has elapsed
+      if (isResting && restEndTime && now >= restEndTime) {
+        setIsResting(false);
+        setRestEndTime(null);
+      }
+    }, 100);
     return () => clearInterval(interval);
-  }, []);
-
-  // Rest timer effect
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isResting && restTimeRemaining > 0) {
-      interval = setInterval(() => {
-        setRestTimeRemaining(prev => {
-          if (prev <= 1) {
-            setIsResting(false);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isResting, restTimeRemaining]);
+  }, [isResting, restEndTime]);
 
   if (!session) {
     return (
@@ -137,8 +127,10 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
   };
 
   const handleStartRest = (restTimeMinutes: number) => {
+    const now = Date.now();
+    const restDurationMs = restTimeMinutes * 60 * 1000; // Convert to milliseconds
+    setRestEndTime(now + restDurationMs);
     setIsResting(true);
-    setRestTimeRemaining(Math.round(restTimeMinutes * 60)); // Convert to seconds
   };
 
   const handleCompleteSession = () => {
@@ -153,6 +145,14 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Calculate remaining rest time based on timestamp
+  const getRestTimeRemaining = (): number => {
+    if (!isResting || !restEndTime) return 0;
+    const now = Date.now();
+    const remaining = Math.max(0, Math.floor((restEndTime - now) / 1000));
+    return remaining;
   };
 
   return (
@@ -195,7 +195,7 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
       </Card>
 
       {/* Rest Timer */}
-      {isResting && (
+      {isResting && restEndTime && (
         <Card className="border-accent">
           <CardContent className="pt-6">
             <div className="text-center space-y-4">
@@ -204,10 +204,13 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
                 <h3 className="text-xl font-semibold">Rest Time</h3>
               </div>
               <div className="text-4xl font-bold text-accent">
-                {formatTime(restTimeRemaining)}
+                {formatTime(getRestTimeRemaining())}
               </div>
               <Button 
-                onClick={() => setIsResting(false)}
+                onClick={() => {
+                  setIsResting(false);
+                  setRestEndTime(null);
+                }}
                 variant="outline"
                 className="w-full"
               >
