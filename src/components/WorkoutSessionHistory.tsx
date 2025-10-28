@@ -220,72 +220,74 @@ function WorkoutSessionCard({ session, onView, onDelete }: WorkoutSessionCardPro
   return (
     <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => onView(session)}>
       <CardContent className="pt-6">
-        <div className="flex items-start justify-between">
-          <div className="space-y-2 flex-1">
+        <div className="space-y-3">
+          {/* Header with title and action buttons */}
+          <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <h3 className="text-lg font-semibold">{session.dayName}</h3>
               <span className="text-sm text-muted-foreground">•</span>
               <span className="text-sm text-muted-foreground">{session.splitName}</span>
             </div>
             
-            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-              <div className="flex items-center space-x-1">
-                <Calendar className="h-4 w-4" />
-                <span>{new Date(session.completedAt || session.startedAt).toLocaleDateString()}</span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <Clock className="h-4 w-4" />
-                <span>{formatSessionDuration(session.totalDuration || 0)}</span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <CheckCircle2 className="h-4 w-4" />
-                <span>{completedSets}/{totalSets} sets</span>
-              </div>
+            <div className="flex space-x-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onView(session);
+                }}
+                className="h-8 w-8 p-0"
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDelete}
+                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </div>
-
-            {/* Progress Bar */}
-            <div className="w-full bg-muted rounded-full h-2">
-              <div 
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  session.status === 'completed' ? 'bg-success' : 'bg-primary'
-                }`}
-                style={{ width: `${progressPercentage}%` }}
-              />
+          </div>
+          
+          {/* Stats */}
+          <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+            <div className="flex items-center space-x-1">
+              <Calendar className="h-4 w-4" />
+              <span>{new Date(session.completedAt || session.startedAt).toLocaleDateString()}</span>
             </div>
-
-            {/* Exercise Summary */}
-            <div className="flex flex-wrap gap-2">
-              {session.exerciseLogs.map((exercise) => (
-                <div
-                  key={exercise.id}
-                  className="px-2 py-1 bg-muted rounded-full text-xs"
-                >
-                  {exercise.exerciseName} ({exercise.sets.filter(set => set.completed).length}/{exercise.sets.length})
-                </div>
-              ))}
+            <div className="flex items-center space-x-1">
+              <Clock className="h-4 w-4" />
+              <span>{formatSessionDuration(session.totalDuration || 0)}</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <CheckCircle2 className="h-4 w-4" />
+              <span>{completedSets}/{totalSets} sets</span>
             </div>
           </div>
 
-          <div className="flex space-x-2 ml-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onView(session);
-              }}
-              className="h-8 w-8 p-0"
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDelete}
-              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+          {/* Progress Bar */}
+          <div className="w-full bg-muted rounded-full h-2">
+            <div 
+              className={`h-2 rounded-full transition-all duration-300 ${
+                session.status === 'completed' ? 'bg-success' : 'bg-primary'
+              }`}
+              style={{ width: `${progressPercentage}%` }}
+            />
+          </div>
+
+          {/* Exercise Summary */}
+          <div className="flex flex-wrap gap-2">
+            {session.exerciseLogs.map((exercise) => (
+              <div
+                key={exercise.id}
+                className="px-2 py-1 bg-muted rounded-full text-xs"
+              >
+                {exercise.exerciseName} ({exercise.sets.filter(set => set.completed).length}/{exercise.sets.length})
+              </div>
+            ))}
           </div>
         </div>
       </CardContent>

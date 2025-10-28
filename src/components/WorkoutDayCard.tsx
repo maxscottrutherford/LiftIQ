@@ -14,12 +14,13 @@ interface WorkoutDayCardProps {
   onUpdate: (updatedDay: WorkoutDay) => void;
   onDelete: (dayId: string) => void;
   showActions?: boolean;
+  isExpandedByDefault?: boolean;
 }
 
-export function WorkoutDayCard({ workoutDay, onUpdate, onDelete, showActions = true }: WorkoutDayCardProps) {
+export function WorkoutDayCard({ workoutDay, onUpdate, onDelete, showActions = true, isExpandedByDefault = false }: WorkoutDayCardProps) {
   const [isAddingExercise, setIsAddingExercise] = useState(false);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
-  const [isExercisesExpanded, setIsExercisesExpanded] = useState(false);
+  const [isExercisesExpanded, setIsExercisesExpanded] = useState(isExpandedByDefault);
 
   const handleAddExercise = (formData: ExerciseFormData) => {
     const newExercise = formDataToExercise(formData);

@@ -220,66 +220,74 @@ export function WorkoutSessionDetails({ session, onBack }: WorkoutSessionDetails
                 {exercise.sets.map((set, index) => (
                   <div
                     key={set.id}
-                    className={`flex items-center justify-between p-3 rounded-lg border ${
+                    className={`flex items-center p-3 rounded-lg border ${
                       set.completed 
                         ? 'bg-success/10 border-success/20' 
                         : 'bg-muted/50 border-muted'
                     }`}
                   >
-                    <div className="flex items-center space-x-4">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                        set.completed 
-                          ? 'bg-success text-success-foreground' 
-                          : 'bg-muted text-muted-foreground'
-                      }`}>
-                        {set.setNumber}
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {set.type === 'warmup' && (
-                          <span className="text-sm font-medium">Warmup</span>
-                        )}
-                        {set.type === 'working' && (
-                          <span className="text-sm font-medium">Working</span>
-                        )}
-                      </div>
+                    {/* Set Number */}
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium mr-3 shrink-0 ${
+                      set.completed 
+                        ? 'bg-success text-success-foreground' 
+                        : 'bg-muted text-muted-foreground'
+                    }`}>
+                      {set.setNumber}
                     </div>
 
-                    {set.completed ? (
-                      <div className="flex items-center space-x-4 text-sm">
-                        {set.weight && (
-                          <div className="flex items-center space-x-1">
-                            <Weight className="h-4 w-4" />
-                            <span>{set.weight} lbs</span>
+                    {/* Set Info */}
+                    <div className="flex-1 min-w-0">
+                      {set.completed ? (
+                        <div className="space-y-2">
+                          {/* Set Type */}
+                          <div>
+                            <span className={`text-xs px-2 py-1 rounded-md font-medium ${
+                              set.type === 'warmup' 
+                                ? 'bg-accent/20 text-accent' 
+                                : 'bg-primary/20 text-primary'
+                            }`}>
+                              {set.type === 'warmup' ? 'Warmup' : 'Working'}
+                            </span>
                           </div>
-                        )}
-                        <div className="flex items-center space-x-1">
-                          <Repeat className="h-4 w-4" />
-                          <span>{set.reps} reps</span>
+                          
+                          {/* Set Data */}
+                          <div className="flex flex-wrap gap-2 text-sm">
+                            {set.weight && (
+                              <div className="flex items-center space-x-1">
+                                <Weight className="h-4 w-4" />
+                                <span>{set.weight} lbs</span>
+                              </div>
+                            )}
+                            <div className="flex items-center space-x-1">
+                              <Repeat className="h-4 w-4" />
+                              <span>{set.reps} reps</span>
+                            </div>
+                            {set.rpe && (
+                              <div className="flex items-center space-x-1">
+                                <TrendingUp className="h-4 w-4" />
+                                <span>RPE {set.rpe}</span>
+                              </div>
+                            )}
+                            {set.rir !== undefined && (
+                              <div className="flex items-center space-x-1">
+                                <Timer className="h-4 w-4" />
+                                <span>RIR {set.rir}</span>
+                              </div>
+                            )}
+                            {set.restTime && (
+                              <div className="flex items-center space-x-1">
+                                <Clock className="h-4 w-4" />
+                                <span>{formatRestTime(set.restTime)}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        {set.rpe && (
-                          <div className="flex items-center space-x-1">
-                            <TrendingUp className="h-4 w-4" />
-                            <span>RPE {set.rpe}</span>
-                          </div>
-                        )}
-                        {set.rir !== undefined && (
-                          <div className="flex items-center space-x-1">
-                            <Timer className="h-4 w-4" />
-                            <span>RIR {set.rir}</span>
-                          </div>
-                        )}
-                        {set.restTime && (
-                          <div className="flex items-center space-x-1">
-                            <Clock className="h-4 w-4" />
-                            <span>{formatRestTime(set.restTime)}</span>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-sm text-muted-foreground">
-                        Not completed
-                      </div>
-                    )}
+                      ) : (
+                        <div className="text-sm text-muted-foreground">
+                          Not completed
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

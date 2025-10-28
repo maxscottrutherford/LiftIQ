@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { WorkoutSplit, WorkoutDay } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,14 +23,30 @@ export function WorkoutSplitManager({ onSave, onCancel, initialSplit }: WorkoutS
   const [workoutDays, setWorkoutDays] = useState<WorkoutDay[]>(initialSplit?.days || []);
   const [isAddingDay, setIsAddingDay] = useState(false);
   const [newDayName, setNewDayName] = useState('');
+  const [lastAddedDayId, setLastAddedDayId] = useState<string | null>(null);
+  const [newlyAddedDayIds, setNewlyAddedDayIds] = useState<Set<string>>(new Set());
+  const dayRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   const isEditing = !!initialSplit;
+
+  // Scroll to newly added day
+  useEffect(() => {
+    if (lastAddedDayId && dayRefs.current[lastAddedDayId]) {
+      dayRefs.current[lastAddedDayId]?.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
+      });
+      // Keep the day expanded, but reset the scroll trigger
+      setTimeout(() => setLastAddedDayId(null), 100);
+    }
+  }, [lastAddedDayId]);
 
   const handleAddDay = () => {
     if (!newDayName.trim()) return;
     
+    const newDayId = generateId();
     const newDay: WorkoutDay = {
-      id: generateId(),
+      id: newDayId,
       name: newDayName.trim(),
       exercises: [],
     };
@@ -38,16 +54,21 @@ export function WorkoutSplitManager({ onSave, onCancel, initialSplit }: WorkoutS
     setWorkoutDays(prev => [...prev, newDay]);
     setNewDayName('');
     setIsAddingDay(false);
+    setLastAddedDayId(newDayId);
+    setNewlyAddedDayIds(prev => new Set(prev).add(newDayId));
   };
 
   const handleAddRestDay = () => {
+    const restDayId = generateId();
     const restDay: WorkoutDay = {
-      id: generateId(),
+      id: restDayId,
       name: 'Rest Day',
       exercises: [],
     };
     
     setWorkoutDays(prev => [...prev, restDay]);
+    setLastAddedDayId(restDayId);
+    setNewlyAddedDayIds(prev => new Set(prev).add(restDayId));
   };
 
   const handleUpdateDay = (updatedDay: WorkoutDay) => {
@@ -80,26 +101,13 @@ export function WorkoutSplitManager({ onSave, onCancel, initialSplit }: WorkoutS
   return (
     <div className="max-w-6xl mx-auto space-y-8 py-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="sm" onClick={onCancel}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <div className="flex items-center space-x-3">
-            <h1 className="text-3xl font-bold">
-              {isEditing ? 'Edit Workout Split' : 'Create Workout Split'}
-            </h1>
-          </div>
-        </div>
-        <Button 
-          onClick={handleSave} 
-          disabled={!canSave}
-          className="flex items-center space-x-2"
-        >
-          <Save className="h-4 w-4" />
-          <span>{isEditing ? 'Update Split' : 'Save Split'}</span>
+      <div className="flex items-center space-x-4">
+        <Button variant="ghost" size="sm" onClick={onCancel}>
+          <ArrowLeft className="h-4 w-4" />
         </Button>
+        <h1 className="text-3xl font-bold">
+          {isEditing ? 'Edit Workout Split' : 'Create Workout Split'}
+        </h1>
       </div>
 
       {/* Split Details */}
@@ -187,13 +195,20 @@ export function WorkoutSplitManager({ onSave, onCancel, initialSplit }: WorkoutS
         {workoutDays.length > 0 ? (
           <div className="space-y-4">
             {workoutDays.map((day) => (
-              <WorkoutDayCard
+              <div
                 key={day.id}
-                workoutDay={day}
-                onUpdate={handleUpdateDay}
-                onDelete={handleDeleteDay}
-                showActions={true}
-              />
+                ref={(el) => {
+                  dayRefs.current[day.id] = el;
+                }}
+              >
+                <WorkoutDayCard
+                  workoutDay={day}
+                  onUpdate={handleUpdateDay}
+                  onDelete={handleDeleteDay}
+                  showActions={true}
+                  isExpandedByDefault={newlyAddedDayIds.has(day.id)}
+                />
+              </div>
             ))}
           </div>
         ) : (
@@ -210,6 +225,18 @@ export function WorkoutSplitManager({ onSave, onCancel, initialSplit }: WorkoutS
           </Card>
         )}
       </div>
+
+      {/* Save Button */}
+      {workoutDays.length > 0 && (
+        <Button 
+          onClick={handleSave} 
+          disabled={!canSave}
+          className="w-full flex items-center justify-center space-x-2"
+        >
+          <Save className="h-4 w-4" />
+          <span>{isEditing ? 'Update Split' : 'Save Split'}</span>
+        </Button>
+      )}
 
       {/* Summary */}
       {workoutDays.length > 0 && (

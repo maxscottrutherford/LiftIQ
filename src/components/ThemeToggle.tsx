@@ -12,7 +12,7 @@ export function ThemeToggle() {
       variant="ghost"
       size="sm"
       onClick={toggleTheme}
-      className="fixed bottom-6 right-6 h-12 w-12 rounded-full shadow-lg border bg-background/80 backdrop-blur-sm hover:bg-background z-50"
+      className="fixed bottom-6 right-6 h-12 w-12 rounded-full shadow-lg border bg-background/80 backdrop-blur-sm hover:bg-primary/10 hover:shadow-xl z-50 text-foreground hover:text-foreground transition-all"
     >
       {theme === 'light' ? (
         <Moon className="h-5 w-5" />
