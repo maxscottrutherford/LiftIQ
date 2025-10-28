@@ -12,30 +12,35 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // Initialize theme with a function to avoid calling during render
-  const [theme, setTheme] = useState<Theme>(() => {
-    // Check localStorage for saved theme preference
-    if (typeof window !== 'undefined') {
-      const savedTheme = localStorage.getItem('liftiq-theme') as Theme;
-      if (savedTheme) {
-        return savedTheme;
-      }
-      // Check system preference
+  // Start with a consistent default to avoid hydration mismatch
+  const [theme, setTheme] = useState<Theme>('light');
+  const [mounted, setMounted] = useState(false);
+
+  // Load theme from localStorage only after mounting (client-side only)
+  useEffect(() => {
+    setMounted(true);
+    const savedTheme = localStorage.getItem('liftiq-theme') as Theme;
+    if (savedTheme) {
+      setTheme(savedTheme);
+    } else {
+      // Check system preference if no saved theme
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      return prefersDark ? 'dark' : 'light';
+      const systemTheme = prefersDark ? 'dark' : 'light';
+      setTheme(systemTheme);
     }
-    return 'light';
-  });
+  }, []);
 
   useEffect(() => {
     // Apply theme to document
+    if (!mounted) return;
+    
     const root = document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
     
     // Save to localStorage
     localStorage.setItem('liftiq-theme', theme);
-  }, [theme]);
+  }, [theme, mounted]);
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
