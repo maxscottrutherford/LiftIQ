@@ -10,7 +10,8 @@ import { WorkoutSessionManager } from './WorkoutSessionManager';
 import { WorkoutSessionHistory } from './WorkoutSessionHistory';
 import { WorkoutSessionDetails } from './WorkoutSessionDetails';
 import { ThemeToggle } from './ThemeToggle';
-import { Plus, ChevronDown, ChevronUp, History, Loader2 } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
+import { Plus, ChevronDown, ChevronUp, History, Loader2, Play } from 'lucide-react';
 import { 
   getWorkoutSplits, 
   saveWorkoutSplit, 
@@ -22,6 +23,7 @@ import {
 } from '@/lib/supabase/workout-service';
 
 export function WorkoutSplitDashboard() {
+  const { user } = useAuth();
   const [splits, setSplits] = useState<WorkoutSplit[]>([]);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [isCreating, setIsCreating] = useState(false);
@@ -31,6 +33,68 @@ export function WorkoutSplitDashboard() {
   const [activeSession, setActiveSession] = useState<{ split: WorkoutSplit; dayId: string } | null>(null);
   const [selectedSession, setSelectedSession] = useState<WorkoutSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeLocalSession, setActiveLocalSession] = useState<{ splitId: string; dayId: string; startedAt: Date } | null>(null);
+
+  // Check for active session in localStorage on mount and when returning to dashboard
+  useEffect(() => {
+    if (!user?.id || splits.length === 0) return;
+    
+    // Only check when on dashboard view
+    if (currentView !== 'dashboard') return;
+    
+    try {
+      const allKeys = Object.keys(localStorage);
+      const workoutKeys = allKeys.filter(key => 
+        key.startsWith(`workout_session_${user.id}_`)
+      );
+      
+      if (workoutKeys.length > 0) {
+        // Get the most recent workout session
+        const sessionsData = workoutKeys.map(key => {
+          try {
+            const data = JSON.parse(localStorage.getItem(key) || '{}');
+            return { ...data, key };
+          } catch {
+            return null;
+          }
+        }).filter(Boolean);
+        
+        if (sessionsData.length > 0) {
+          const mostRecent = sessionsData[0];
+          // Extract split and day IDs from the key format: workout_session_userId_splitId_dayId
+          // Remove the 'workout_session' prefix and userId
+          const userId = user.id;
+          const keyWithoutPrefix = mostRecent.key.replace(`workout_session_${userId}_`, '');
+          // The key format is now: splitId_dayId
+          // We need to find where splitId ends and dayId begins
+          // Since we need to match it with splits, we'll try each combination
+          let splitId = '';
+          let dayId = '';
+          
+          for (const split of splits) {
+            if (keyWithoutPrefix.startsWith(split.id + '_')) {
+              splitId = split.id;
+              dayId = keyWithoutPrefix.replace(split.id + '_', '');
+              break;
+            }
+          }
+          
+          if (splitId && dayId) {
+            setActiveLocalSession({
+              splitId,
+              dayId,
+              startedAt: new Date(mostRecent.session.startedAt)
+            });
+          }
+        }
+      } else {
+        // No active sessions found, clear the indicator
+        setActiveLocalSession(null);
+      }
+    } catch (error) {
+      console.error('Error checking for active session:', error);
+    }
+  }, [user?.id, splits, currentView]);
 
   // Load splits and sessions from Supabase on mount
   useEffect(() => {
@@ -93,6 +157,28 @@ export function WorkoutSplitDashboard() {
   const handleStartWorkout = (split: WorkoutSplit, dayId: string) => {
     setActiveSession({ split, dayId });
     setCurrentView('session');
+  };
+
+  const handleResumeWorkout = () => {
+    if (activeLocalSession) {
+      const split = splits.find(s => s.id === activeLocalSession.splitId);
+      if (split) {
+        setActiveSession({ split, dayId: activeLocalSession.dayId });
+        setCurrentView('session');
+        setActiveLocalSession(null); // Clear after resuming
+      }
+    }
+  };
+
+  const handleCancelActiveSession = () => {
+    if (!user?.id || !activeLocalSession) return;
+    try {
+      const key = `workout_session_${user.id}_${activeLocalSession.splitId}_${activeLocalSession.dayId}`;
+      localStorage.removeItem(key);
+      setActiveLocalSession(null);
+    } catch (error) {
+      console.error('Error canceling active session:', error);
+    }
   };
 
   const handleCompleteSession = async (session: WorkoutSession) => {
@@ -226,6 +312,54 @@ export function WorkoutSplitDashboard() {
           </Button>
         </div>
       </div>
+
+      {/* Active Workout Session Notice */}
+      {activeLocalSession && (() => {
+        const split = splits.find(s => s.id === activeLocalSession.splitId);
+        const day = split?.days.find(d => d.id === activeLocalSession.dayId);
+        return split && day ? (
+          <Card className="border-accent bg-accent/5">
+            <CardContent className="pt-6 space-y-4">
+              {/* Top: Play icon and workout day name */}
+              <div className="flex items-center justify-center space-x-4">
+                <div className="p-2 rounded-full bg-accent">
+                  <Play className="h-6 w-6 text-accent-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold">Active Workout: {day.name}</h3>
+              </div>
+              
+              {/* Middle: Split name and date/time */}
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">
+                  {split.name}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">
+                  Started {new Date(activeLocalSession.startedAt).toLocaleString()}
+                </p>
+              </div>
+              
+              {/* Bottom: Cancel and Resume buttons */}
+              <div className="flex justify-center space-x-2">
+                <Button 
+                  variant="outline"
+                  onClick={handleCancelActiveSession}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleResumeWorkout}
+                  className="bg-accent hover:bg-accent/90"
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  Resume Workout
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null;
+      })()}
 
       {/* Stats Overview */}
       {splits.length > 0 && (

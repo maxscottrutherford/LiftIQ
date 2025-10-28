@@ -15,6 +15,7 @@ import {
   formatSessionDuration
 } from '@/lib/workout-utils';
 import { ThemeToggle } from './ThemeToggle';
+import { useAuth } from '@/lib/auth-context';
 import { 
   CheckCircle, 
   Clock, 
@@ -33,13 +34,102 @@ interface WorkoutSessionManagerProps {
 }
 
 export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, previousSessions = [] }: WorkoutSessionManagerProps) {
-  // Initialize session on mount
-  const [session, setSession] = useState<WorkoutSession | null>(() => createWorkoutSession(split, dayId));
+  const { user } = useAuth();
+  const userId = user?.id || 'anonymous';
+  
+  // Storage key for saving session state - includes user ID to prevent cross-user data leaks
+  const STORAGE_KEY = `workout_session_${userId}_${split.id}_${dayId}`;
+  
+  // Clean up old sessions from other users on mount
+  useEffect(() => {
+    try {
+      if (user?.id) {
+        // Get all localStorage keys and clean up any workout sessions not belonging to current user
+        const allKeys = Object.keys(localStorage);
+        allKeys.forEach(key => {
+          if (key.startsWith('workout_session_') && !key.includes(user.id)) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error cleaning up old sessions:', error);
+    }
+  }, [user?.id]);
+  
+  // Initialize session on mount - try to restore from localStorage first
+  const [session, setSession] = useState<WorkoutSession | null>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Check if this session belongs to the current user and hasn't expired (24 hours)
+        const now = Date.now();
+        const sessionAge = now - parsed.timestamp;
+        const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+        
+        if (parsed.userId === userId && sessionAge < maxAge) {
+          // Restore the session with proper Date objects
+          return {
+            ...parsed.session,
+            startedAt: new Date(parsed.session.startedAt),
+            completedAt: parsed.session.completedAt ? new Date(parsed.session.completedAt) : undefined,
+            exerciseLogs: parsed.session.exerciseLogs.map((log: ExerciseLog) => ({
+              ...log,
+              sets: log.sets.map(set => ({
+                ...set,
+                completedAt: set.completedAt ? new Date(set.completedAt) : undefined
+              }))
+            }))
+          };
+        } else {
+          // Session expired or belongs to different user, remove it
+          localStorage.removeItem(STORAGE_KEY);
+        }
+      }
+    } catch (error) {
+      console.error('Error restoring session from localStorage:', error);
+    }
+    return createWorkoutSession(split, dayId);
+  });
+  
   const [isResting, setIsResting] = useState(false);
   const [restEndTime, setRestEndTime] = useState<number | null>(null);
   const [sessionNotes, setSessionNotes] = useState('');
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [lastUndoneSetData, setLastUndoneSetData] = useState<Partial<SetLog> | null>(null);
+
+  // Save session to localStorage whenever it changes
+  useEffect(() => {
+    if (session) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          session,
+          notes: sessionNotes,
+          timestamp: Date.now(),
+          userId: userId
+        }));
+      } catch (error) {
+        console.error('Error saving session to localStorage:', error);
+      }
+    }
+  }, [session, sessionNotes, STORAGE_KEY, userId]);
+
+  // Restore session notes from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.notes) {
+          setSessionNotes(parsed.notes);
+        }
+      }
+    } catch (error) {
+      console.error('Error restoring notes from localStorage:', error);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Update current time for duration display and rest timer
   useEffect(() => {
@@ -199,7 +289,19 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
       ...completeWorkoutSession(session),
       notes: sessionNotes.trim() || undefined
     };
+    // Clear localStorage on completion
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.error('Error clearing session from localStorage:', error);
+    }
     onComplete(completedSession);
+  };
+
+  const handleCancel = () => {
+    // Don't clear localStorage - keep the session for resuming
+    // The session will remain in localStorage and appear on dashboard
+    onCancel();
   };
 
   const formatTime = (seconds: number): string => {
@@ -221,7 +323,7 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="sm" onClick={onCancel}>
+          <Button variant="ghost" size="sm" onClick={handleCancel}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
