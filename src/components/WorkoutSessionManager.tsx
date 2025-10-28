@@ -226,16 +226,28 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
         <Card className="border-primary">
           <CardHeader>
             <CardTitle className="text-xl">{currentExercise.exerciseName}</CardTitle>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <p className="text-sm text-muted-foreground">
                 Set {currentSet.setNumber} of {currentExercise.sets.length} • {currentSet.type === 'warmup' ? 'Warmup' : 'Working'}
               </p>
-              {originalExercise?.repRange && (
-                <div className="text-xs bg-muted px-2 py-1 rounded-md">
-                  Target: {originalExercise.repRange.min}-{originalExercise.repRange.max} reps
-                </div>
-              )}
+              <div className="flex gap-2 flex-wrap">
+                {originalExercise?.repRange && (
+                  <div className="text-xs bg-muted px-2 py-1 rounded-md">
+                    Target: {originalExercise.repRange.min}-{originalExercise.repRange.max} reps
+                  </div>
+                )}
+                {originalExercise?.intensityMetric?.type && originalExercise?.intensityMetric?.value && (
+                  <div className="text-xs bg-muted px-2 py-1 rounded-md">
+                    Target {originalExercise.intensityMetric.type.toUpperCase()}: {originalExercise.intensityMetric.value}
+                  </div>
+                )}
+              </div>
             </div>
+            {originalExercise?.notes && (
+              <div className="mt-2 text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-md">
+                {originalExercise.notes}
+              </div>
+            )}
           </CardHeader>
           <CardContent>
             {/* Most Recent Working Set */}
