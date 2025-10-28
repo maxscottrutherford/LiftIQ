@@ -19,7 +19,7 @@ interface WorkoutDayCardProps {
 export function WorkoutDayCard({ workoutDay, onUpdate, onDelete, showActions = true }: WorkoutDayCardProps) {
   const [isAddingExercise, setIsAddingExercise] = useState(false);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
-  const [isExercisesExpanded, setIsExercisesExpanded] = useState(true);
+  const [isExercisesExpanded, setIsExercisesExpanded] = useState(false);
 
   const handleAddExercise = (formData: ExerciseFormData) => {
     const newExercise = formDataToExercise(formData);
@@ -89,14 +89,14 @@ export function WorkoutDayCard({ workoutDay, onUpdate, onDelete, showActions = t
   const isRestDay = workoutDay.name === 'Rest Day';
 
   return (
-    <Card className={`w-full ${isRestDay ? 'border-muted bg-muted/20' : ''}`}>
+    <Card className={`w-full`}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div 
             className="flex items-center space-x-3 cursor-pointer flex-1"
             onClick={() => !isRestDay && setIsExercisesExpanded(!isExercisesExpanded)}
           >
-            <CardTitle className={`text-xl ${isRestDay ? 'text-muted-foreground' : ''}`}>
+            <CardTitle className={`text-xl`}>
               {workoutDay.name}
             </CardTitle>
             {!isRestDay && (
@@ -137,13 +137,6 @@ export function WorkoutDayCard({ workoutDay, onUpdate, onDelete, showActions = t
         )}
       </CardHeader>
       <CardContent className="space-y-4">
-        {isRestDay && (
-          <div className="text-center py-8">
-            <p className="text-muted-foreground">
-              💤 Rest and recovery are essential for muscle growth and performance
-            </p>
-          </div>
-        )}
         {/* Exercises List */}
         {!isRestDay && isExercisesExpanded && (
           <>

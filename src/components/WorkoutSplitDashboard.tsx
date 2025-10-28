@@ -26,7 +26,7 @@ export function WorkoutSplitDashboard() {
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [editingSplit, setEditingSplit] = useState<WorkoutSplit | null>(null);
-  const [isStatsExpanded, setIsStatsExpanded] = useState(true);
+  const [isStatsExpanded, setIsStatsExpanded] = useState(false);
   const [currentView, setCurrentView] = useState<'dashboard' | 'history' | 'session' | 'session-details'>('dashboard');
   const [activeSession, setActiveSession] = useState<{ split: WorkoutSplit; dayId: string } | null>(null);
   const [selectedSession, setSelectedSession] = useState<WorkoutSession | null>(null);

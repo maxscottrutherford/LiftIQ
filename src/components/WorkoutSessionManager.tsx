@@ -393,6 +393,12 @@ function SetLoggingForm({ set, exercise, onComplete, onStartRest }: SetLoggingFo
     
     onComplete(setData);
     
+    // Clear inputs
+    setWeight('');
+    setReps('');
+    setRpe('');
+    setRir('');
+    
     // Start rest timer if this is a working set
     if (set.type === 'working') {
       onStartRest(2); // Default 2 minutes rest
