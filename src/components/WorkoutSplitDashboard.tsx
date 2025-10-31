@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { WorkoutSplit, WorkoutSession } from '@/lib/types';
+import { WorkoutSplit, WorkoutSession, ExerciseLog, SetLog } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { WorkoutSplitCard } from './WorkoutSplitCard';
@@ -9,9 +9,11 @@ import { WorkoutSplitManager } from './WorkoutSplitManager';
 import { WorkoutSessionManager } from './WorkoutSessionManager';
 import { WorkoutSessionHistory } from './WorkoutSessionHistory';
 import { WorkoutSessionDetails } from './WorkoutSessionDetails';
+import { FreestyleWorkoutManager } from './FreestyleWorkoutManager';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '@/lib/auth-context';
-import { Plus, ChevronDown, ChevronUp, History, Loader2, Play } from 'lucide-react';
+import { generateId } from '@/lib/workout-utils';
+import { Plus, ChevronDown, ChevronUp, History, Loader2, Play, Dumbbell } from 'lucide-react';
 import { 
   getWorkoutSplits, 
   saveWorkoutSplit, 
@@ -29,7 +31,7 @@ export function WorkoutSplitDashboard() {
   const [isCreating, setIsCreating] = useState(false);
   const [editingSplit, setEditingSplit] = useState<WorkoutSplit | null>(null);
   const [isStatsExpanded, setIsStatsExpanded] = useState(false);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'history' | 'session' | 'session-details'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'history' | 'session' | 'session-details' | 'freestyle'>('dashboard');
   const [activeSession, setActiveSession] = useState<{ split: WorkoutSplit; dayId: string } | null>(null);
   const [selectedSession, setSelectedSession] = useState<WorkoutSession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -221,6 +223,106 @@ export function WorkoutSplitDashboard() {
     setSelectedSession(null);
   };
 
+  const handleStartFreestyle = () => {
+    setCurrentView('freestyle');
+  };
+
+  const handleFreestyleComplete = async (workoutName: string, sets: any[], notes?: string, startedAt?: Date) => {
+    try {
+      // Group sets by exercise name to create ExerciseLog objects
+      const exerciseGroups = new Map<string, any[]>();
+      
+      sets.forEach(set => {
+        const exerciseName = set.exerciseName;
+        if (!exerciseGroups.has(exerciseName)) {
+          exerciseGroups.set(exerciseName, []);
+        }
+        exerciseGroups.get(exerciseName)!.push(set);
+      });
+
+      // Convert grouped sets to ExerciseLog format
+      // Create a map to track original insertion order
+      const setOrderMap = new Map<string, number>();
+      sets.forEach((set, index) => {
+        setOrderMap.set(set.id, index);
+      });
+
+      const exerciseLogs: ExerciseLog[] = Array.from(exerciseGroups.entries()).map(([exerciseName, exerciseSets]) => {
+        // Sort sets by original insertion order
+        const sortedSets = exerciseSets.sort((a, b) => {
+          const orderA = setOrderMap.get(a.id) ?? 0;
+          const orderB = setOrderMap.get(b.id) ?? 0;
+          return orderA - orderB;
+        });
+
+        // Convert FreestyleSet to SetLog format
+        const setLogs: SetLog[] = sortedSets.map((set, index) => ({
+          id: set.id || generateId(),
+          setNumber: index + 1,
+          type: set.setType,
+          weight: set.weight,
+          reps: set.reps,
+          rpe: set.rpe,
+          rir: set.rir,
+          completed: true, // All sets in freestyle workout are completed
+          completedAt: new Date(),
+        }));
+
+        return {
+          id: generateId(),
+          exerciseId: generateId(), // Generate a placeholder exercise ID
+          exerciseName,
+          sets: setLogs,
+          completedAt: new Date(),
+          notes: exerciseSets.find(s => s.notes)?.notes, // Use first set's notes if available
+        };
+      });
+
+      // Calculate duration if we have start time
+      const duration = startedAt 
+        ? Math.round((new Date().getTime() - startedAt.getTime()) / 60000) // Convert to minutes
+        : undefined;
+
+      // Create WorkoutSession object
+      // For freestyle workouts, we'll use placeholder values for split/day since they don't belong to a split
+      const session: WorkoutSession = {
+        id: generateId(),
+        splitId: 'freestyle',
+        splitName: 'Freestyle Workout',
+        dayId: 'freestyle',
+        dayName: workoutName,
+        startedAt: startedAt || new Date(),
+        completedAt: new Date(),
+        status: 'completed',
+        exerciseLogs,
+        totalDuration: duration,
+        notes,
+      };
+
+      // Save to database
+      const savedSession = await saveWorkoutSession(session);
+      
+      if (savedSession) {
+        // Refresh sessions list
+        const updatedSessions = await getWorkoutSessions();
+        setSessions(updatedSessions);
+        
+        // Go back to dashboard
+        setCurrentView('dashboard');
+      } else {
+        console.error('Failed to save freestyle workout');
+        // TODO: Show error message to user
+      }
+    } catch (error) {
+      console.error('Error saving freestyle workout:', error);
+      // TODO: Show error message to user
+    }
+  };
+
+  const handleFreestyleCancel = () => {
+    setCurrentView('dashboard');
+  };
+
   const handleCancel = () => {
     setIsCreating(false);
     setEditingSplit(null);
@@ -283,34 +385,57 @@ export function WorkoutSplitDashboard() {
     );
   }
 
+  if (currentView === 'freestyle') {
+    return (
+      <FreestyleWorkoutManager
+        onComplete={handleFreestyleComplete}
+        onCancel={handleFreestyleCancel}
+      />
+    );
+  }
+
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center space-x-2">
-              <span>LiftIQ</span>
-            </h1>
-            <p className="text-muted-foreground mt-1 hidden sm:block">
-              Create and manage your workout routines
-            </p>
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center space-x-2">
+            <span>LiftIQ</span>
+          </h1>
+          <p className="text-muted-foreground mt-1 hidden sm:block">
+            Create and manage your workout routines
+          </p>
+        </div>
+        
+        {/* Navbar */}
+        <nav className="border-b border-border">
+          <div className="flex flex-wrap items-center gap-2 py-3">
+            <Button 
+              variant="ghost"
+              onClick={handleViewHistory}
+              className="flex items-center space-x-2 bg-secondary/20 hover:bg-secondary/30 hover:text-foreground dark:bg-muted/30 dark:hover:bg-muted/60"
+            >
+              <History className="h-4 w-4" />
+              <span>Past Lifts</span>
+            </Button>
+            <Button 
+              variant="ghost"
+              onClick={handleStartFreestyle}
+              className="flex items-center space-x-2 bg-secondary/20 hover:bg-secondary/30 hover:text-foreground dark:bg-muted/30 dark:hover:bg-muted/60"
+            >
+              <Dumbbell className="h-4 w-4" />
+              <span>Log A Workout</span>
+            </Button>
+            <Button 
+              variant="ghost"
+              onClick={handleCreateSplit}
+              className="flex items-center space-x-2 bg-secondary/20 hover:bg-secondary/30 hover:text-foreground dark:bg-muted/30 dark:hover:bg-muted/60"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Create A Split</span>
+            </Button>
           </div>
-        </div>
-        <div className="flex space-x-2">
-          <Button 
-            variant="outline" 
-            onClick={handleViewHistory}
-            className="flex items-center space-x-2"
-          >
-            <History className="h-4 w-4" />
-            <span>Past Lifts</span>
-          </Button>
-          <Button onClick={handleCreateSplit} className="flex items-center space-x-2">
-            <Plus className="h-4 w-4" />
-            <span>Create Split</span>
-          </Button>
-        </div>
+        </nav>
       </div>
 
       {/* Active Workout Session Notice */}
