@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Suspense } from 'react';
 import { ThemeProvider } from "@/lib/theme-context";
 import { AuthProvider } from "@/lib/auth-context";
 import { MobileInputHandler } from "@/components/common/MobileInputHandler";
+import { ScrollToTop } from "@/components/common/ScrollToTop";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -74,6 +76,9 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <AuthProvider>
+            <Suspense fallback={null}>
+              <ScrollToTop />
+            </Suspense>
             <MobileInputHandler />
             {children}
           </AuthProvider>
