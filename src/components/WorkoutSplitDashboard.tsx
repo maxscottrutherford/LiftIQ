@@ -56,17 +56,17 @@ export function WorkoutSplitDashboard() {
           const workoutAge = now - parsed.timestamp;
           const maxAge = 24 * 60 * 60 * 1000; // 24 hours
           
-          // Show active workout if it exists, hasn't expired, and belongs to the user
-          // We show it even if no sets or name yet - any data means they started a workout
-          if (parsed.userId === user.id && workoutAge < maxAge) {
+          // Show active workout only if user has entered data (sets or workout name)
+          const hasData = (parsed.sets?.length > 0) || (parsed.workoutName?.trim()?.length > 0);
+          if (parsed.userId === user.id && workoutAge < maxAge && hasData) {
             setActiveFreestyleWorkout({
               workoutName: parsed.workoutName || 'Freestyle Workout',
               startedAt: new Date(parsed.startedAt || parsed.timestamp),
               setCount: parsed.sets?.length || 0,
             });
           } else {
-            // Only remove if expired or wrong user
-            if (workoutAge >= maxAge || parsed.userId !== user.id) {
+            // Only remove if expired or wrong user or no data
+            if (workoutAge >= maxAge || parsed.userId !== user.id || !hasData) {
               localStorage.removeItem(freestyleKey);
             }
             setActiveFreestyleWorkout(null);
@@ -117,11 +117,22 @@ export function WorkoutSplitDashboard() {
             }
             
             if (splitId && dayId) {
-              setActiveLocalSession({
-                splitId,
-                dayId,
-                startedAt: new Date(mostRecent.session.startedAt)
-              });
+              // Only show active session if there are completed sets or any logged data
+              const session = mostRecent.session;
+              const hasCompletedSets = session?.exerciseLogs?.some((exercise: any) =>
+                exercise.sets?.some((set: any) => set.completed)
+              ) || false;
+              
+              // Show if there are completed sets
+              if (hasCompletedSets) {
+                setActiveLocalSession({
+                  splitId,
+                  dayId,
+                  startedAt: new Date(mostRecent.session.startedAt)
+                });
+              } else {
+                setActiveLocalSession(null);
+              }
             }
           }
         } else {
