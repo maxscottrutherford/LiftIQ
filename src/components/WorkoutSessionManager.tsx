@@ -458,6 +458,7 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
             <SetLoggingForm
               set={currentSet}
               exercise={currentExercise}
+              restTimeMinutes={originalExercise?.restTime || 2}
               onComplete={(setData) => {
                 handleCompleteSet(
                   currentPosition!.exerciseIndex, 
@@ -560,6 +561,7 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
 interface SetLoggingFormProps {
   set: SetLog;
   exercise: ExerciseLog;
+  restTimeMinutes: number;
   onComplete: (setData: Partial<SetLog>) => void;
   onStartRest: (restTimeMinutes: number) => void;
   onUndo?: () => void;
@@ -567,7 +569,7 @@ interface SetLoggingFormProps {
   canUndo?: boolean;
 }
 
-function SetLoggingForm({ set, exercise, onComplete, onStartRest, onUndo, initialValues, canUndo }: SetLoggingFormProps) {
+function SetLoggingForm({ set, exercise, restTimeMinutes, onComplete, onStartRest, onUndo, initialValues, canUndo }: SetLoggingFormProps) {
   const [weight, setWeight] = useState<string>('');
   const [reps, setReps] = useState<string>('');
   const [rpe, setRpe] = useState<string>('');
@@ -607,7 +609,7 @@ function SetLoggingForm({ set, exercise, onComplete, onStartRest, onUndo, initia
     
     // Start rest timer if this is a working set
     if (set.type === 'working') {
-      onStartRest(2); // Default 2 minutes rest
+      onStartRest(restTimeMinutes);
     }
   };
 
