@@ -137,7 +137,7 @@ export function StatisticsDashboard() {
 
       {/* Exercise Selection */}
       {availableExercises.length > 0 ? (
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Max Weight Over Time</CardTitle>
           </CardHeader>
@@ -159,7 +159,7 @@ export function StatisticsDashboard() {
             </div>
 
             {chartData.length > 0 ? (
-              <div className="w-full" style={{ height: '400px' }}>
+              <div className="w-full min-h-[400px]" style={{ height: '400px' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
