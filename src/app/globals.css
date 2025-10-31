@@ -61,6 +61,25 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Support iOS safe areas */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  
+  /* Main content container should respect safe areas */
+  main {
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  }
+  
+  /* iOS safe area support for fixed elements */
+  .safe-area-inset-bottom {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+  
+  .safe-area-inset-top {
+    padding-top: calc(1rem + env(safe-area-inset-top));
   }
   
   /* Prevent Safari autozoom on input focus */
@@ -75,6 +94,64 @@
     textarea,
     select {
       font-size: 14px !important;
+    }
+  }
+  
+  /* Mobile-specific optimizations */
+  * {
+    /* Improve touch response */
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Ensure touch targets are large enough */
+  button, 
+  a, 
+  input[type="button"], 
+  input[type="submit"],
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better spacing for mobile interactions */
+  @media (max-width: 640px) {
+    /* Larger touch areas for cards/clickable elements */
+    [role="button"],
+    .cursor-pointer {
+      min-height: 44px;
+      padding: 0.75rem 1rem;
+    }
+    
+    /* Smooth scrolling for mobile */
+    html {
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Prevent horizontal scroll */
+    body {
+      overflow-x: hidden;
+      position: relative;
+    }
+    
+    /* Better input focus on mobile */
+    input:focus,
+    textarea:focus,
+    select:focus {
+      scroll-margin-top: 100px;
+    }
+  }
+  
+  /* Reduce motion for users who prefer it */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
     }
   }
 }

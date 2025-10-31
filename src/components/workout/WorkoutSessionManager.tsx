@@ -618,13 +618,14 @@ function SetLoggingForm({ set, exercise, restTimeMinutes, onComplete, onStartRes
   };
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+    <div className="space-y-5 sm:space-y-4">
+      <div className="grid grid-cols-2 gap-4 sm:gap-3">
         <div className="space-y-2">
           <Label htmlFor="weight">Weight (lbs)</Label>
           <Input
             id="weight"
             type="number"
+            step="0.5"
             value={weight}
             onChange={(e) => setWeight(e.target.value)}
             placeholder="0"
@@ -644,7 +645,7 @@ function SetLoggingForm({ set, exercise, restTimeMinutes, onComplete, onStartRes
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 sm:gap-3">
         <div className="space-y-2">
           <Label htmlFor="rpe">RPE (1-10)</Label>
           <Input

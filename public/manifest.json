@@ -1,0 +1,25 @@
+{
+  "name": "LiftIQ - Elevate Your Training",
+  "short_name": "LiftIQ",
+  "description": "Track workouts, monitor progress, and reach your fitness goals with intelligent workout management",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F7F9FA",
+  "theme_color": "#0E5E6F",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
+

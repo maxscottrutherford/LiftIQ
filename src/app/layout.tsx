@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/lib/theme-context";
 import { AuthProvider } from "@/lib/auth-context";
+import { MobileInputHandler } from "@/components/common/MobileInputHandler";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,6 +18,26 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "LiftIQ - Elevate Your Training",
   description: "Track workouts, monitor progress, and reach your fitness goals with intelligent workout management",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "LiftIQ",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#0E5E6F" },
+    { media: "(prefers-color-scheme: dark)", color: "#0E5E6F" },
+  ],
 };
 
 export default function RootLayout({
@@ -27,6 +48,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="LiftIQ" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -49,6 +74,7 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <AuthProvider>
+            <MobileInputHandler />
             {children}
           </AuthProvider>
         </ThemeProvider>
