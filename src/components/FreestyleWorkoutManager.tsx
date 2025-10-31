@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '@/lib/auth-context';
-import { ArrowLeft, Plus, Save, Trash2, CheckCircle, Edit2 } from 'lucide-react';
+import { ArrowLeft, Plus, Save, Trash2, CheckCircle, Edit2, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface FreestyleSet {
   id: string;
@@ -28,13 +28,108 @@ interface FreestyleWorkoutManagerProps {
 }
 
 export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorkoutManagerProps) {
+  const { user } = useAuth();
+  const userId = user?.id || 'anonymous';
+  const STORAGE_KEY = `freestyle_workout_${userId}`;
 
-  const [workoutName, setWorkoutName] = useState('');
-  const [workoutNotes, setWorkoutNotes] = useState('');
-  const [sets, setSets] = useState<FreestyleSet[]>([]);
+  // Clean up old freestyle workouts from other users on mount
+  useEffect(() => {
+    try {
+      if (user?.id) {
+        const allKeys = Object.keys(localStorage);
+        allKeys.forEach(key => {
+          if (key.startsWith('freestyle_workout_') && !key.includes(user.id)) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error cleaning up localStorage:', error);
+    }
+  }, [user?.id]);
+
+  // Initialize state - try to restore from localStorage first
+  const [workoutName, setWorkoutName] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const now = Date.now();
+        const workoutAge = now - parsed.timestamp;
+        const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+        
+        if (parsed.userId === userId && workoutAge < maxAge) {
+          return parsed.workoutName || '';
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+        }
+      }
+    } catch (error) {
+      console.error('Error restoring workout name:', error);
+    }
+    return '';
+  });
+
+  const [workoutNotes, setWorkoutNotes] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const now = Date.now();
+        const workoutAge = now - parsed.timestamp;
+        const maxAge = 24 * 60 * 60 * 1000;
+        
+        if (parsed.userId === userId && workoutAge < maxAge) {
+          return parsed.workoutNotes || '';
+        }
+      }
+    } catch (error) {
+      console.error('Error restoring workout notes:', error);
+    }
+    return '';
+  });
+
+  const [sets, setSets] = useState<FreestyleSet[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const now = Date.now();
+        const workoutAge = now - parsed.timestamp;
+        const maxAge = 24 * 60 * 60 * 1000;
+        
+        if (parsed.userId === userId && workoutAge < maxAge) {
+          return parsed.sets || [];
+        }
+      }
+    } catch (error) {
+      console.error('Error restoring sets:', error);
+    }
+    return [];
+  });
+
+  const [startedAt] = useState<Date>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const now = Date.now();
+        const workoutAge = now - parsed.timestamp;
+        const maxAge = 24 * 60 * 60 * 1000;
+        
+        if (parsed.userId === userId && workoutAge < maxAge && parsed.startedAt) {
+          return new Date(parsed.startedAt);
+        }
+      }
+    } catch (error) {
+      console.error('Error restoring startedAt:', error);
+    }
+    return new Date();
+  });
+
   const [isAddingSet, setIsAddingSet] = useState(false);
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
-  const [startedAt] = useState<Date>(() => new Date()); // Track when workout started
+  const [expandedExercises, setExpandedExercises] = useState<Set<string>>(new Set()); // Track which exercises are expanded
 
   // Form state for adding/editing sets
   const [currentExerciseName, setCurrentExerciseName] = useState('');
@@ -49,6 +144,13 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
   const getExistingExerciseNames = (): string[] => {
     const exerciseNames = new Set(sets.map(set => set.exerciseName));
     return Array.from(exerciseNames).sort();
+  };
+
+  // Find case-insensitive match for an exercise name
+  const findCaseInsensitiveMatch = (input: string): string | null => {
+    const existingNames = getExistingExerciseNames();
+    const match = existingNames.find(name => name.toLowerCase() === input.toLowerCase());
+    return match || null;
   };
 
 
@@ -71,9 +173,10 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
   const handleAddSet = () => {
     if (!currentExerciseName.trim() || !currentReps) return;
 
+    const exerciseName = currentExerciseName.trim();
     const newSet: FreestyleSet = {
       id: generateId(),
-      exerciseName: currentExerciseName.trim(),
+      exerciseName,
       setType: currentSetType,
       weight: currentWeight ? parseFloat(currentWeight) : undefined,
       reps: parseInt(currentReps) || 0,
@@ -83,6 +186,12 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
     };
 
     setSets(prev => [...prev, newSet]);
+    // Auto-expand the exercise when a set is added
+    setExpandedExercises(prev => {
+      const expandedSet = new Set(prev);
+      expandedSet.add(exerciseName);
+      return expandedSet;
+    });
     resetForm();
   };
 
@@ -120,12 +229,37 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
     setSets(prev => prev.filter(s => s.id !== setId));
   };
 
+  // Save freestyle workout to localStorage whenever state changes
+  // Always save if there's any data (even just startedAt), so we can detect active workouts
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        workoutName,
+        workoutNotes,
+        sets,
+        startedAt: startedAt.toISOString(),
+        userId,
+        timestamp: Date.now(),
+      }));
+    } catch (error) {
+      console.error('Error saving freestyle workout to localStorage:', error);
+    }
+  }, [workoutName, workoutNotes, sets, startedAt, STORAGE_KEY, userId]);
+
   const handleComplete = () => {
     if (!workoutName.trim() || sets.length === 0) return;
+    // Clear localStorage on completion
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.error('Error clearing localStorage:', error);
+    }
     onComplete(workoutName.trim(), sets, workoutNotes.trim() || undefined, startedAt);
   };
 
   const handleCancel = () => {
+    // Don't clear localStorage here - let the user resume if they navigate back
+    // localStorage will be cleared when they explicitly complete or cancel from the dashboard
     resetForm();
     onCancel();
   };
@@ -172,7 +306,7 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
               {getExistingExerciseNames().length > 0 ? (
                 <div className="space-y-2">
                   <Select
-                    value={currentExerciseName && getExistingExerciseNames().includes(currentExerciseName) ? currentExerciseName : ''}
+                    value={currentExerciseName && findCaseInsensitiveMatch(currentExerciseName) ? findCaseInsensitiveMatch(currentExerciseName)! : ''}
                     onValueChange={(value) => {
                       setCurrentExerciseName(value);
                     }}
@@ -191,8 +325,18 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
                   <Input
                     id="exerciseName"
                     value={currentExerciseName}
-                    onChange={(e) => setCurrentExerciseName(e.target.value)}
-                    placeholder="Or type new exercise name"
+                    onChange={(e) => {
+                      const inputValue = e.target.value;
+                      // Check for case-insensitive match
+                      const match = findCaseInsensitiveMatch(inputValue);
+                      // If there's an exact case-insensitive match, use the actual name with correct casing
+                      if (match && inputValue.toLowerCase() === match.toLowerCase()) {
+                        setCurrentExerciseName(match);
+                      } else {
+                        setCurrentExerciseName(inputValue);
+                      }
+                    }}
+                    placeholder="Exercise Name"
                     required
                   />
                 </div>
@@ -331,10 +475,38 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
             <div className="space-y-6">
               {getExistingExerciseNames().map((exerciseName) => {
                 const exerciseSets = sets.filter(set => set.exerciseName === exerciseName);
+                const isExpanded = expandedExercises.has(exerciseName);
+                
+                const toggleExercise = () => {
+                  setExpandedExercises(prev => {
+                    const newSet = new Set(prev);
+                    if (newSet.has(exerciseName)) {
+                      newSet.delete(exerciseName);
+                    } else {
+                      newSet.add(exerciseName);
+                    }
+                    return newSet;
+                  });
+                };
+
                 return (
                   <div key={exerciseName} className="space-y-3">
                     <div className="flex items-center justify-between pb-2 border-b">
-                      <h3 className="text-lg font-semibold">{exerciseName}</h3>
+                      <div className="flex items-center space-x-2 flex-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={toggleExercise}
+                          className="h-6 w-6 p-0"
+                        >
+                          {isExpanded ? (
+                            <ChevronUp className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <h3 className="text-lg font-semibold">{exerciseName}</h3>
+                      </div>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -348,52 +520,23 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
                         <span>Add Set</span>
                       </Button>
                     </div>
-                    <div className="space-y-2">
+                    {isExpanded && (
+                      <div className="space-y-2">
                       {exerciseSets.map((set) => (
                         <div
                           key={set.id}
                           className="p-3 rounded-lg border bg-card"
                         >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <span className={`text-xs px-2 py-1 rounded-md ${
-                                  set.setType === 'warmup'
-                                    ? 'bg-accent/20 text-accent'
-                                    : 'bg-primary/20 text-primary'
-                                }`}>
-                                  {set.setType === 'warmup' ? 'Warmup' : 'Working'}
-                                </span>
-                              </div>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground">
-                                {set.weight !== undefined && (
-                                  <div>
-                                    <span className="font-medium">Weight: </span>
-                                    {set.weight} lbs
-                                  </div>
-                                )}
-                                <div>
-                                  <span className="font-medium">Reps: </span>
-                                  {set.reps}
-                                </div>
-                                {set.rpe !== undefined && (
-                                  <div>
-                                    <span className="font-medium">RPE: </span>
-                                    {set.rpe}
-                                  </div>
-                                )}
-                                {set.rir !== undefined && (
-                                  <div>
-                                    <span className="font-medium">RIR: </span>
-                                    {set.rir}
-                                  </div>
-                                )}
-                              </div>
-                              {set.notes && (
-                                <p className="text-sm text-muted-foreground mt-2">{set.notes}</p>
-                              )}
-                            </div>
-                            <div className="flex space-x-1 ml-4">
+                          {/* Header: Badge and Action Buttons */}
+                          <div className="flex items-center justify-between mb-3">
+                            <span className={`text-xs px-2 py-1 rounded-md ${
+                              set.setType === 'warmup'
+                                ? 'bg-accent/20 text-accent'
+                                : 'bg-primary/20 text-primary'
+                            }`}>
+                              {set.setType === 'warmup' ? 'Warmup' : 'Working'}
+                            </span>
+                            <div className="flex space-x-1">
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -412,9 +555,44 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
                               </Button>
                             </div>
                           </div>
+                          
+                          {/* Metrics: Full width */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground">
+                            {set.weight !== undefined && (
+                              <div>
+                                <span className="font-medium">Weight: </span>
+                                {set.weight} lbs
+                              </div>
+                            )}
+                            <div>
+                              <span className="font-medium">Reps: </span>
+                              {set.reps}
+                            </div>
+                            {set.rpe !== undefined && (
+                              <div>
+                                <span className="font-medium">RPE: </span>
+                                {set.rpe}
+                              </div>
+                            )}
+                            {set.rir !== undefined && (
+                              <div>
+                                <span className="font-medium">RIR: </span>
+                                {set.rir}
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Notes */}
+                          {set.notes && (
+                            <div className="mt-2 text-sm text-muted-foreground">
+                              <span className="font-medium">Note: </span>
+                              {set.notes}
+                            </div>
+                          )}
                         </div>
                       ))}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}

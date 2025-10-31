@@ -36,62 +36,98 @@ export function WorkoutSplitDashboard() {
   const [selectedSession, setSelectedSession] = useState<WorkoutSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeLocalSession, setActiveLocalSession] = useState<{ splitId: string; dayId: string; startedAt: Date } | null>(null);
+  const [activeFreestyleWorkout, setActiveFreestyleWorkout] = useState<{ workoutName: string; startedAt: Date; setCount: number } | null>(null);
 
   // Check for active session in localStorage on mount and when returning to dashboard
   useEffect(() => {
-    if (!user?.id || splits.length === 0) return;
+    if (!user?.id) return;
     
     // Only check when on dashboard view
     if (currentView !== 'dashboard') return;
     
     try {
-      const allKeys = Object.keys(localStorage);
-      const workoutKeys = allKeys.filter(key => 
-        key.startsWith(`workout_session_${user.id}_`)
-      );
-      
-      if (workoutKeys.length > 0) {
-        // Get the most recent workout session
-        const sessionsData = workoutKeys.map(key => {
-          try {
-            const data = JSON.parse(localStorage.getItem(key) || '{}');
-            return { ...data, key };
-          } catch {
-            return null;
-          }
-        }).filter(Boolean);
-        
-        if (sessionsData.length > 0) {
-          const mostRecent = sessionsData[0];
-          // Extract split and day IDs from the key format: workout_session_userId_splitId_dayId
-          // Remove the 'workout_session' prefix and userId
-          const userId = user.id;
-          const keyWithoutPrefix = mostRecent.key.replace(`workout_session_${userId}_`, '');
-          // The key format is now: splitId_dayId
-          // We need to find where splitId ends and dayId begins
-          // Since we need to match it with splits, we'll try each combination
-          let splitId = '';
-          let dayId = '';
+      // Check for active freestyle workout (doesn't require splits to be loaded)
+      const freestyleKey = `freestyle_workout_${user.id}`;
+      const freestyleData = localStorage.getItem(freestyleKey);
+      if (freestyleData) {
+        try {
+          const parsed = JSON.parse(freestyleData);
+          const now = Date.now();
+          const workoutAge = now - parsed.timestamp;
+          const maxAge = 24 * 60 * 60 * 1000; // 24 hours
           
-          for (const split of splits) {
-            if (keyWithoutPrefix.startsWith(split.id + '_')) {
-              splitId = split.id;
-              dayId = keyWithoutPrefix.replace(split.id + '_', '');
-              break;
-            }
-          }
-          
-          if (splitId && dayId) {
-            setActiveLocalSession({
-              splitId,
-              dayId,
-              startedAt: new Date(mostRecent.session.startedAt)
+          // Show active workout if it exists, hasn't expired, and belongs to the user
+          // We show it even if no sets or name yet - any data means they started a workout
+          if (parsed.userId === user.id && workoutAge < maxAge) {
+            setActiveFreestyleWorkout({
+              workoutName: parsed.workoutName || 'Freestyle Workout',
+              startedAt: new Date(parsed.startedAt || parsed.timestamp),
+              setCount: parsed.sets?.length || 0,
             });
+          } else {
+            // Only remove if expired or wrong user
+            if (workoutAge >= maxAge || parsed.userId !== user.id) {
+              localStorage.removeItem(freestyleKey);
+            }
+            setActiveFreestyleWorkout(null);
           }
+        } catch {
+          setActiveFreestyleWorkout(null);
         }
       } else {
-        // No active sessions found, clear the indicator
-        setActiveLocalSession(null);
+        setActiveFreestyleWorkout(null);
+      }
+
+      // Check for split workout sessions (only if splits are loaded)
+      if (splits.length > 0) {
+        const allKeys = Object.keys(localStorage);
+        const workoutKeys = allKeys.filter(key => 
+          key.startsWith(`workout_session_${user.id}_`)
+        );
+        
+        if (workoutKeys.length > 0) {
+          // Get the most recent workout session
+          const sessionsData = workoutKeys.map(key => {
+            try {
+              const data = JSON.parse(localStorage.getItem(key) || '{}');
+              return { ...data, key };
+            } catch {
+              return null;
+            }
+          }).filter(Boolean);
+          
+          if (sessionsData.length > 0) {
+            const mostRecent = sessionsData[0];
+            // Extract split and day IDs from the key format: workout_session_userId_splitId_dayId
+            // Remove the 'workout_session' prefix and userId
+            const userId = user.id;
+            const keyWithoutPrefix = mostRecent.key.replace(`workout_session_${userId}_`, '');
+            // The key format is now: splitId_dayId
+            // We need to find where splitId ends and dayId begins
+            // Since we need to match it with splits, we'll try each combination
+            let splitId = '';
+            let dayId = '';
+            
+            for (const split of splits) {
+              if (keyWithoutPrefix.startsWith(split.id + '_')) {
+                splitId = split.id;
+                dayId = keyWithoutPrefix.replace(split.id + '_', '');
+                break;
+              }
+            }
+            
+            if (splitId && dayId) {
+              setActiveLocalSession({
+                splitId,
+                dayId,
+                startedAt: new Date(mostRecent.session.startedAt)
+              });
+            }
+          }
+        } else {
+          // No active sessions found, clear the indicator
+          setActiveLocalSession(null);
+        }
       }
     } catch (error) {
       console.error('Error checking for active session:', error);
@@ -439,6 +475,57 @@ export function WorkoutSplitDashboard() {
       </div>
 
       {/* Active Workout Session Notice */}
+      {/* Active Freestyle Workout Notice */}
+      {activeFreestyleWorkout && (
+        <Card className="border-accent bg-accent/5">
+          <CardContent className="pt-6 space-y-4">
+            {/* Top: Play icon and workout name */}
+            <div className="flex items-center justify-center space-x-4">
+              <div className="p-2 rounded-full bg-accent">
+                <Play className="h-6 w-6 text-accent-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold">{activeFreestyleWorkout.workoutName}</h3>
+            </div>
+            
+            {/* Middle: Set count and date/time */}
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">
+                {activeFreestyleWorkout.setCount} set{activeFreestyleWorkout.setCount !== 1 ? 's' : ''} logged
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">
+                Started {activeFreestyleWorkout.startedAt.toLocaleString()}
+              </p>
+            </div>
+            
+            {/* Bottom: Cancel and Continue buttons */}
+            <div className="flex justify-center space-x-2">
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  // Clear the active freestyle workout
+                  if (user?.id) {
+                    const freestyleKey = `freestyle_workout_${user.id}`;
+                    localStorage.removeItem(freestyleKey);
+                    setActiveFreestyleWorkout(null);
+                  }
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleStartFreestyle}
+                className="bg-accent hover:bg-accent/90"
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Continue Workout
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {activeLocalSession && (() => {
         const split = splits.find(s => s.id === activeLocalSession.splitId);
         const day = split?.days.find(d => d.id === activeLocalSession.dayId);
@@ -450,7 +537,7 @@ export function WorkoutSplitDashboard() {
                 <div className="p-2 rounded-full bg-accent">
                   <Play className="h-6 w-6 text-accent-foreground" />
                 </div>
-                <h3 className="text-lg font-semibold">Active Workout: {day.name}</h3>
+                <h3 className="text-lg font-semibold">{day.name}</h3>
               </div>
               
               {/* Middle: Split name and date/time */}
