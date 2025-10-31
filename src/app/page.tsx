@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "@/components/ThemeToggle"
+import { ThemeToggle } from "@/components/common/ThemeToggle"
 import Link from "next/link"
 import { Dumbbell, TrendingUp, Calendar, Target } from "lucide-react"
 

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ThemeToggle } from "@/components/ThemeToggle"
+import { ThemeToggle } from "@/components/common/ThemeToggle"
 import Link from "next/link"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { createClient } from '@/lib/supabase/client'
@@ -16,14 +16,12 @@ export default function SignUp() {
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    setMessage(null)
     setLoading(true)
 
     // Validate passwords match
@@ -48,15 +46,10 @@ export default function SignUp() {
 
       if (error) throw error
 
-      setMessage('Check your email to confirm your account!')
-      
-      // Redirect to sign in after a short delay
-      setTimeout(() => {
-        router.push('/signin')
-      }, 3000)
+      // Redirect to dashboard on success
+      router.push('/dashboard')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred during sign up')
-    } finally {
       setLoading(false)
     }
   }
@@ -138,13 +131,6 @@ export default function SignUp() {
               {error && (
                 <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
                   {error}
-                </div>
-              )}
-
-              {/* Success Message */}
-              {message && (
-                <div className="text-sm text-success bg-success/10 p-3 rounded-md">
-                  {message}
                 </div>
               )}
 

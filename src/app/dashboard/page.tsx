@@ -2,9 +2,9 @@
 
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { HomeDashboard } from "@/components/HomeDashboard";
-import { WorkoutSplitDashboard } from "@/components/WorkoutSplitDashboard";
-import { StatisticsDashboard } from "@/components/StatisticsDashboard";
+import { HomeDashboard } from "@/components/dashboard/HomeDashboard";
+import { WorkoutSplitDashboard } from "@/components/dashboard/WorkoutSplitDashboard";
+import { StatisticsDashboard } from "@/components/dashboard/StatisticsDashboard";
 import { Loader2 } from 'lucide-react';
 
 function DashboardContent() {

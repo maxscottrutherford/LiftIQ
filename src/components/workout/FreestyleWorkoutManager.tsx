@@ -7,9 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ThemeToggle } from './ThemeToggle';
+import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { useAuth } from '@/lib/auth-context';
-import { ArrowLeft, Plus, Save, Trash2, CheckCircle, Edit2, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Plus, Save, Trash2, CheckCircle, Edit2, ChevronDown, ChevronUp, Play } from 'lucide-react';
 
 interface FreestyleSet {
   id: string;
@@ -45,6 +45,52 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
       }
     } catch (error) {
       console.error('Error cleaning up localStorage:', error);
+    }
+  }, [user?.id]);
+
+  // Check for active workout on mount to show alert
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    try {
+      const freestyleKey = `freestyle_workout_${user.id}`;
+      const freestyleData = localStorage.getItem(freestyleKey);
+      if (freestyleData) {
+        try {
+          const parsed = JSON.parse(freestyleData);
+          const now = Date.now();
+          const workoutAge = now - parsed.timestamp;
+          const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+          
+          // Show active workout only if user has entered data (sets or workout name)
+          const hasData = (parsed.sets?.length > 0) || (parsed.workoutName?.trim()?.length > 0);
+          if (parsed.userId === user.id && workoutAge < maxAge && hasData) {
+            setActiveWorkoutInfo({
+              workoutName: parsed.workoutName || 'Freestyle Workout',
+              startedAt: new Date(parsed.startedAt || parsed.timestamp),
+              setCount: parsed.sets?.length || 0,
+            });
+            setShowActiveWorkoutAlert(true);
+          } else {
+            // Only remove if expired or wrong user or no data
+            if (workoutAge >= maxAge || parsed.userId !== user.id || !hasData) {
+              localStorage.removeItem(freestyleKey);
+            }
+            setShowActiveWorkoutAlert(false);
+            setActiveWorkoutInfo(null);
+          }
+        } catch {
+          setShowActiveWorkoutAlert(false);
+          setActiveWorkoutInfo(null);
+        }
+      } else {
+        setShowActiveWorkoutAlert(false);
+        setActiveWorkoutInfo(null);
+      }
+    } catch (error) {
+      console.error('Error checking for active workout:', error);
+      setShowActiveWorkoutAlert(false);
+      setActiveWorkoutInfo(null);
     }
   }, [user?.id]);
 
@@ -130,6 +176,8 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
   const [isAddingSet, setIsAddingSet] = useState(false);
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
   const [expandedExercises, setExpandedExercises] = useState<Set<string>>(new Set()); // Track which exercises are expanded
+  const [showActiveWorkoutAlert, setShowActiveWorkoutAlert] = useState(false);
+  const [activeWorkoutInfo, setActiveWorkoutInfo] = useState<{ workoutName: string; startedAt: Date; setCount: number } | null>(null);
 
   // Form state for adding/editing sets
   const [currentExerciseName, setCurrentExerciseName] = useState('');
@@ -254,6 +302,12 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
     } catch (error) {
       console.error('Error clearing localStorage:', error);
     }
+    // Set flag for celebration on home page
+    try {
+      sessionStorage.setItem('workout_completed', 'true');
+    } catch (error) {
+      console.error('Error setting workout completion flag:', error);
+    }
     onComplete(workoutName.trim(), sets, workoutNotes.trim() || undefined, startedAt);
   };
 
@@ -263,6 +317,93 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
     resetForm();
     onCancel();
   };
+
+  const handleCancelActiveWorkout = () => {
+    if (user?.id) {
+      try {
+        const freestyleKey = `freestyle_workout_${user.id}`;
+        localStorage.removeItem(freestyleKey);
+        setShowActiveWorkoutAlert(false);
+        setActiveWorkoutInfo(null);
+        // Reset state to clear the workout
+        setWorkoutName('');
+        setWorkoutNotes('');
+        setSets([]);
+        setExpandedExercises(new Set());
+      } catch (error) {
+        console.error('Error canceling active workout:', error);
+      }
+    }
+  };
+
+  const handleResumeActiveWorkout = () => {
+    // Just hide the alert - the workout data is already restored in state
+    setShowActiveWorkoutAlert(false);
+  };
+
+  // Show active workout alert instead of regular UI if there's an active workout
+  if (showActiveWorkoutAlert && activeWorkoutInfo) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-6 py-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Button variant="ghost" size="sm" onClick={handleCancel}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold">Freestyle Workout</h1>
+              <p className="text-muted-foreground">Log your workout as you go</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Active Workout Alert */}
+        <Card className="border-accent bg-accent/5">
+          <CardContent className="pt-6 space-y-4">
+            {/* Top: Play icon and workout name */}
+            <div className="flex items-center justify-center space-x-4">
+              <div className="p-2 rounded-full bg-accent">
+                <Play className="h-6 w-6 text-accent-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold">{activeWorkoutInfo.workoutName}</h3>
+            </div>
+            
+            {/* Middle: Set count and date/time */}
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">
+                {activeWorkoutInfo.setCount} set{activeWorkoutInfo.setCount !== 1 ? 's' : ''} logged
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">
+                Started {activeWorkoutInfo.startedAt.toLocaleString()}
+              </p>
+            </div>
+            
+            {/* Bottom: Cancel and Resume buttons */}
+            <div className="flex justify-center space-x-2">
+              <Button 
+                variant="outline"
+                onClick={handleCancelActiveWorkout}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleResumeActiveWorkout}
+                className="bg-accent hover:bg-accent/90"
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Resume Workout
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <ThemeToggle />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 py-4">

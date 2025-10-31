@@ -4,13 +4,13 @@ import { useState, useEffect } from 'react';
 import { WorkoutSplit, WorkoutSession, ExerciseLog, SetLog } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { WorkoutSplitCard } from './WorkoutSplitCard';
-import { WorkoutSplitManager } from './WorkoutSplitManager';
-import { WorkoutSessionManager } from './WorkoutSessionManager';
-import { PastLifts } from './PastLifts';
-import { WorkoutSessionDetails } from './WorkoutSessionDetails';
-import { FreestyleWorkoutManager } from './FreestyleWorkoutManager';
-import { ThemeToggle } from './ThemeToggle';
+import { WorkoutSplitCard } from '@/components/workout/WorkoutSplitCard';
+import { WorkoutSplitManager } from '@/components/workout/WorkoutSplitManager';
+import { WorkoutSessionManager } from '@/components/workout/WorkoutSessionManager';
+import { PastLifts } from '@/components/workout/PastLifts';
+import { WorkoutSessionDetails } from '@/components/workout/WorkoutSessionDetails';
+import { FreestyleWorkoutManager } from '@/components/workout/FreestyleWorkoutManager';
+import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { useAuth } from '@/lib/auth-context';
 import { generateId } from '@/lib/workout-utils';
 import { Plus, ChevronDown, ChevronUp, History, Loader2, Play, Dumbbell, ArrowLeft } from 'lucide-react';
@@ -40,7 +40,6 @@ export function WorkoutSplitDashboard({ initialView = 'splits' }: WorkoutSplitDa
   const [selectedSession, setSelectedSession] = useState<WorkoutSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeLocalSession, setActiveLocalSession] = useState<{ splitId: string; dayId: string; startedAt: Date } | null>(null);
-  const [activeFreestyleWorkout, setActiveFreestyleWorkout] = useState<{ workoutName: string; startedAt: Date; setCount: number } | null>(null);
 
   // Check for active session in localStorage on mount and when returning to dashboard
   useEffect(() => {
@@ -50,38 +49,6 @@ export function WorkoutSplitDashboard({ initialView = 'splits' }: WorkoutSplitDa
     if (currentView !== 'splits') return;
     
     try {
-      // Check for active freestyle workout (doesn't require splits to be loaded)
-      const freestyleKey = `freestyle_workout_${user.id}`;
-      const freestyleData = localStorage.getItem(freestyleKey);
-      if (freestyleData) {
-        try {
-          const parsed = JSON.parse(freestyleData);
-          const now = Date.now();
-          const workoutAge = now - parsed.timestamp;
-          const maxAge = 24 * 60 * 60 * 1000; // 24 hours
-          
-          // Show active workout only if user has entered data (sets or workout name)
-          const hasData = (parsed.sets?.length > 0) || (parsed.workoutName?.trim()?.length > 0);
-          if (parsed.userId === user.id && workoutAge < maxAge && hasData) {
-            setActiveFreestyleWorkout({
-              workoutName: parsed.workoutName || 'Freestyle Workout',
-              startedAt: new Date(parsed.startedAt || parsed.timestamp),
-              setCount: parsed.sets?.length || 0,
-            });
-          } else {
-            // Only remove if expired or wrong user or no data
-            if (workoutAge >= maxAge || parsed.userId !== user.id || !hasData) {
-              localStorage.removeItem(freestyleKey);
-            }
-            setActiveFreestyleWorkout(null);
-          }
-        } catch {
-          setActiveFreestyleWorkout(null);
-        }
-      } else {
-        setActiveFreestyleWorkout(null);
-      }
-
       // Check for split workout sessions (only if splits are loaded)
       if (splits.length > 0) {
         const allKeys = Object.keys(localStorage);
@@ -238,9 +205,18 @@ export function WorkoutSplitDashboard({ initialView = 'splits' }: WorkoutSplitDa
     const saved = await saveWorkoutSession(session);
     if (saved) {
       setSessions(prev => [...prev, saved]);
+      // Set flag for celebration and redirect to home
+      try {
+        sessionStorage.setItem('workout_completed', 'true');
+      } catch (error) {
+        console.error('Error setting workout completion flag:', error);
+      }
+      // Redirect to home to show celebration
+      window.location.href = '/dashboard';
+    } else {
+      setActiveSession(null);
+      setCurrentView('splits');
     }
-    setActiveSession(null);
-    setCurrentView('splits');
   };
 
   const handleCancelSession = () => {
@@ -477,57 +453,6 @@ export function WorkoutSplitDashboard({ initialView = 'splits' }: WorkoutSplitDa
       </Button>
 
       {/* Active Workout Session Notice */}
-      {/* Active Freestyle Workout Notice */}
-      {activeFreestyleWorkout && (
-        <Card className="border-accent bg-accent/5">
-          <CardContent className="pt-6 space-y-4">
-            {/* Top: Play icon and workout name */}
-            <div className="flex items-center justify-center space-x-4">
-              <div className="p-2 rounded-full bg-accent">
-                <Play className="h-6 w-6 text-accent-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold">{activeFreestyleWorkout.workoutName}</h3>
-            </div>
-            
-            {/* Middle: Set count and date/time */}
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground">
-                {activeFreestyleWorkout.setCount} set{activeFreestyleWorkout.setCount !== 1 ? 's' : ''} logged
-              </p>
-            </div>
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground">
-                Started {activeFreestyleWorkout.startedAt.toLocaleString()}
-              </p>
-            </div>
-            
-            {/* Bottom: Cancel and Continue buttons */}
-            <div className="flex justify-center space-x-2">
-              <Button 
-                variant="outline"
-                onClick={() => {
-                  // Clear the active freestyle workout
-                  if (user?.id) {
-                    const freestyleKey = `freestyle_workout_${user.id}`;
-                    localStorage.removeItem(freestyleKey);
-                    setActiveFreestyleWorkout(null);
-                  }
-                }}
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleStartFreestyle}
-                className="bg-accent hover:bg-accent/90"
-              >
-                <Play className="h-4 w-4 mr-2" />
-                Continue Workout
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {activeLocalSession && (() => {
         const split = splits.find(s => s.id === activeLocalSession.splitId);
         const day = split?.days.find(d => d.id === activeLocalSession.dayId);

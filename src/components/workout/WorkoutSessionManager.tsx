@@ -14,7 +14,7 @@ import {
   completeWorkoutSession,
   formatSessionDuration
 } from '@/lib/workout-utils';
-import { ThemeToggle } from './ThemeToggle';
+import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { useAuth } from '@/lib/auth-context';
 import { 
   CheckCircle, 
@@ -294,6 +294,12 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
       localStorage.removeItem(STORAGE_KEY);
     } catch (error) {
       console.error('Error clearing session from localStorage:', error);
+    }
+    // Set flag for celebration on home page
+    try {
+      sessionStorage.setItem('workout_completed', 'true');
+    } catch (error) {
+      console.error('Error setting workout completion flag:', error);
     }
     onComplete(completedSession);
   };

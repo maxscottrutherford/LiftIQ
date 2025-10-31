@@ -1,13 +1,31 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ThemeToggle } from './ThemeToggle';
+import { ThemeToggle } from '@/components/common/ThemeToggle';
+import { CongratulationsModal } from '@/components/common/CongratulationsModal';
 import { Dumbbell, Calendar, BarChart3, History } from 'lucide-react';
 
 export function HomeDashboard() {
   const router = useRouter();
+  const [showCongratulations, setShowCongratulations] = useState(false);
+
+  // Check if user just completed a workout
+  useEffect(() => {
+    try {
+      const workoutCompleted = sessionStorage.getItem('workout_completed');
+      if (workoutCompleted === 'true') {
+        // Clear the flag
+        sessionStorage.removeItem('workout_completed');
+        // Show the congratulations modal
+        setShowCongratulations(true);
+      }
+    } catch (error) {
+      console.error('Error checking workout completion:', error);
+    }
+  }, []);
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 py-2">
@@ -111,6 +129,12 @@ export function HomeDashboard() {
       </div>
 
       <ThemeToggle />
+      
+      {/* Congratulations Modal */}
+      <CongratulationsModal
+        isOpen={showCongratulations}
+        onClose={() => setShowCongratulations(false)}
+      />
     </div>
   );
 }
