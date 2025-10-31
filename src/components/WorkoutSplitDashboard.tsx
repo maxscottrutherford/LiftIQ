@@ -7,13 +7,13 @@ import { Button } from '@/components/ui/button';
 import { WorkoutSplitCard } from './WorkoutSplitCard';
 import { WorkoutSplitManager } from './WorkoutSplitManager';
 import { WorkoutSessionManager } from './WorkoutSessionManager';
-import { WorkoutSessionHistory } from './WorkoutSessionHistory';
+import { PastLifts } from './PastLifts';
 import { WorkoutSessionDetails } from './WorkoutSessionDetails';
 import { FreestyleWorkoutManager } from './FreestyleWorkoutManager';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '@/lib/auth-context';
 import { generateId } from '@/lib/workout-utils';
-import { Plus, ChevronDown, ChevronUp, History, Loader2, Play, Dumbbell } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, History, Loader2, Play, Dumbbell, ArrowLeft } from 'lucide-react';
 import { 
   getWorkoutSplits, 
   saveWorkoutSplit, 
@@ -24,14 +24,18 @@ import {
   deleteWorkoutSession
 } from '@/lib/supabase/workout-service';
 
-export function WorkoutSplitDashboard() {
+interface WorkoutSplitDashboardProps {
+  initialView?: 'splits' | 'history' | 'session' | 'session-details' | 'freestyle';
+}
+
+export function WorkoutSplitDashboard({ initialView = 'splits' }: WorkoutSplitDashboardProps = {}) {
   const { user } = useAuth();
   const [splits, setSplits] = useState<WorkoutSplit[]>([]);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [editingSplit, setEditingSplit] = useState<WorkoutSplit | null>(null);
   const [isStatsExpanded, setIsStatsExpanded] = useState(false);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'history' | 'session' | 'session-details' | 'freestyle'>('dashboard');
+  const [currentView, setCurrentView] = useState<'splits' | 'history' | 'session' | 'session-details' | 'freestyle'>(initialView || 'splits');
   const [activeSession, setActiveSession] = useState<{ split: WorkoutSplit; dayId: string } | null>(null);
   const [selectedSession, setSelectedSession] = useState<WorkoutSession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,8 +46,8 @@ export function WorkoutSplitDashboard() {
   useEffect(() => {
     if (!user?.id) return;
     
-    // Only check when on dashboard view
-    if (currentView !== 'dashboard') return;
+    // Only check when on splits view (home view handled separately)
+    if (currentView !== 'splits') return;
     
     try {
       // Check for active freestyle workout (doesn't require splits to be loaded)
@@ -236,12 +240,12 @@ export function WorkoutSplitDashboard() {
       setSessions(prev => [...prev, saved]);
     }
     setActiveSession(null);
-    setCurrentView('dashboard');
+    setCurrentView('splits');
   };
 
   const handleCancelSession = () => {
     setActiveSession(null);
-    setCurrentView('dashboard');
+    setCurrentView('splits');
   };
 
   const handleViewHistory = () => {
@@ -265,9 +269,14 @@ export function WorkoutSplitDashboard() {
     setCurrentView('history');
   };
 
+  const handleBackToHome = () => {
+    // Navigate back to home
+    window.location.href = '/dashboard';
+  };
+
   const handleBackToDashboard = () => {
-    setCurrentView('dashboard');
-    setSelectedSession(null);
+    // Navigate back to home
+    window.location.href = '/dashboard';
   };
 
   const handleStartFreestyle = () => {
@@ -354,8 +363,8 @@ export function WorkoutSplitDashboard() {
         const updatedSessions = await getWorkoutSessions();
         setSessions(updatedSessions);
         
-        // Go back to dashboard
-        setCurrentView('dashboard');
+        // Go back to home
+        window.location.href = '/dashboard';
       } else {
         console.error('Failed to save freestyle workout');
         // TODO: Show error message to user
@@ -367,7 +376,8 @@ export function WorkoutSplitDashboard() {
   };
 
   const handleFreestyleCancel = () => {
-    setCurrentView('dashboard');
+    // Navigate back to home
+    window.location.href = '/dashboard';
   };
 
   const handleCancel = () => {
@@ -414,7 +424,7 @@ export function WorkoutSplitDashboard() {
 
   if (currentView === 'history') {
     return (
-      <WorkoutSessionHistory
+      <PastLifts
         sessions={sessions}
         onViewSession={handleViewSession}
         onDeleteSession={handleDeleteSession}
@@ -442,48 +452,29 @@ export function WorkoutSplitDashboard() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-8 py-4">
       {/* Header */}
-      <div className="space-y-4">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center space-x-2">
-            <span>LiftIQ</span>
-          </h1>
-          <p className="text-muted-foreground mt-1 hidden sm:block">
-            Create and manage your workout routines
-          </p>
-        </div>
-        
-        {/* Navbar */}
-        <nav className="border-b border-border">
-          <div className="flex flex-wrap items-center gap-2 py-3">
-            <Button 
-              variant="ghost"
-              onClick={handleViewHistory}
-              className="flex items-center space-x-2 bg-secondary/20 hover:bg-secondary/30 hover:text-foreground dark:bg-muted/30 dark:hover:bg-muted/60"
-            >
-              <History className="h-4 w-4" />
-              <span>Past Lifts</span>
-            </Button>
-            <Button 
-              variant="ghost"
-              onClick={handleStartFreestyle}
-              className="flex items-center space-x-2 bg-secondary/20 hover:bg-secondary/30 hover:text-foreground dark:bg-muted/30 dark:hover:bg-muted/60"
-            >
-              <Dumbbell className="h-4 w-4" />
-              <span>Log A Workout</span>
-            </Button>
-            <Button 
-              variant="ghost"
-              onClick={handleCreateSplit}
-              className="flex items-center space-x-2 bg-secondary/20 hover:bg-secondary/30 hover:text-foreground dark:bg-muted/30 dark:hover:bg-muted/60"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Create A Split</span>
-            </Button>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <Button variant="ghost" size="sm" onClick={handleBackToHome}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold">Workout Splits</h1>
+            <p className="text-muted-foreground">Create and manage your workout routines</p>
           </div>
-        </nav>
+        </div>
       </div>
+
+      {/* Create Split Button - Full Width */}
+      <Button 
+        onClick={handleCreateSplit}
+        className="w-full flex items-center justify-center space-x-2"
+        size="lg"
+      >
+        <Plus className="h-5 w-5" />
+        <span>Create A Split</span>
+      </Button>
 
       {/* Active Workout Session Notice */}
       {/* Active Freestyle Workout Notice */}
@@ -584,6 +575,34 @@ export function WorkoutSplitDashboard() {
         ) : null;
       })()}
 
+      {/* Splits List */}
+      {splits.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {splits.map((split) => (
+            <WorkoutSplitCard
+              key={split.id}
+              split={split}
+              onEdit={handleEditSplit}
+              onDelete={handleDeleteSplit}
+              onStart={handleStartWorkout}
+            />
+          ))}
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="text-center py-12">
+            <h3 className="text-xl font-semibold mb-2">No Workout Splits Yet</h3>
+            <p className="text-muted-foreground mb-6">
+              Create your first workout split to get started with organizing your training routine.
+            </p>
+            <Button onClick={handleCreateSplit} className="flex items-center space-x-2 mx-auto">
+              <Plus className="h-4 w-4" />
+              <span>Create Your First Split</span>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stats Overview */}
       {splits.length > 0 && (
         <div className="space-y-4">
@@ -661,34 +680,6 @@ export function WorkoutSplitDashboard() {
             </div>
           )}
         </div>
-      )}
-
-      {/* Splits List */}
-      {splits.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {splits.map((split) => (
-            <WorkoutSplitCard
-              key={split.id}
-              split={split}
-              onEdit={handleEditSplit}
-              onDelete={handleDeleteSplit}
-              onStart={handleStartWorkout}
-            />
-          ))}
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="text-center py-12">
-            <h3 className="text-xl font-semibold mb-2">No Workout Splits Yet</h3>
-            <p className="text-muted-foreground mb-6">
-              Create your first workout split to get started with organizing your training routine.
-            </p>
-            <Button onClick={handleCreateSplit} className="flex items-center space-x-2 mx-auto">
-              <Plus className="h-4 w-4" />
-              <span>Create Your First Split</span>
-            </Button>
-          </CardContent>
-        </Card>
       )}
       <ThemeToggle />
     </div>

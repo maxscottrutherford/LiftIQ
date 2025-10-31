@@ -17,14 +17,14 @@ import {
   CheckCircle2
 } from 'lucide-react';
 
-interface WorkoutSessionHistoryProps {
+interface PastLiftsProps {
   sessions: WorkoutSession[];
   onViewSession: (session: WorkoutSession) => void;
   onDeleteSession: (sessionId: string) => void;
   onBackToDashboard: () => void;
 }
 
-export function WorkoutSessionHistory({ sessions, onViewSession, onDeleteSession, onBackToDashboard }: WorkoutSessionHistoryProps) {
+export function PastLifts({ sessions, onViewSession, onDeleteSession, onBackToDashboard }: PastLiftsProps) {
   const [sortBy, setSortBy] = useState<'date' | 'duration' | 'split'>('date');
   const [filterSplit, setFilterSplit] = useState<string>('all');
 
@@ -81,7 +81,7 @@ export function WorkoutSessionHistory({ sessions, onViewSession, onDeleteSession
   const stats = getSessionStats();
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6 py-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
@@ -294,3 +294,4 @@ function WorkoutSessionCard({ session, onView, onDelete }: WorkoutSessionCardPro
     </Card>
   );
 }
+

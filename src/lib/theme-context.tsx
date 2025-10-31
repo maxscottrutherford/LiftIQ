@@ -7,39 +7,55 @@ type Theme = 'light' | 'dark';
 interface ThemeContextType {
   theme: Theme;
   toggleTheme: () => void;
+  mounted: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // Start with a consistent default to avoid hydration mismatch
-  const [theme, setTheme] = useState<Theme>('light');
+  // Initialize theme from localStorage or system preference synchronously
+  const getInitialTheme = (): Theme => {
+    if (typeof window === 'undefined') return 'light';
+    
+    try {
+      const savedTheme = localStorage.getItem('liftiq-theme') as Theme;
+      if (savedTheme === 'dark' || savedTheme === 'light') {
+        return savedTheme;
+      }
+    } catch (e) {
+      // localStorage might not be available
+    }
+    
+    // Check system preference if no saved theme
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    
+    return 'light';
+  };
+
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [mounted, setMounted] = useState(false);
 
-  // Load theme from localStorage only after mounting (client-side only)
+  // Set mounted flag after component mounts
   useEffect(() => {
     setMounted(true);
-    const savedTheme = localStorage.getItem('liftiq-theme') as Theme;
-    if (savedTheme) {
-      setTheme(savedTheme);
-    } else {
-      // Check system preference if no saved theme
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const systemTheme = prefersDark ? 'dark' : 'light';
-      setTheme(systemTheme);
-    }
   }, []);
 
   useEffect(() => {
-    // Apply theme to document
-    if (!mounted) return;
-    
+    // Apply theme to document immediately, even before mount
     const root = document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
     
     // Save to localStorage
-    localStorage.setItem('liftiq-theme', theme);
+    if (mounted) {
+      try {
+        localStorage.setItem('liftiq-theme', theme);
+      } catch (e) {
+        // localStorage might not be available
+      }
+    }
   }, [theme, mounted]);
 
   const toggleTheme = () => {
@@ -47,7 +63,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme, mounted }}>
       {children}
     </ThemeContext.Provider>
   );

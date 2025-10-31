@@ -56,7 +56,7 @@
 │   │   ├── WorkoutSplitManager.tsx  # Split creation/editing with rest days
 │   │   ├── WorkoutSplitDashboard.tsx # Main dashboard with session management
 │   │   ├── WorkoutSessionManager.tsx # Live workout session tracking
-│   │   ├── WorkoutSessionHistory.tsx # Historical workout sessions
+│   │   ├── PastLifts.tsx # Historical workout sessions
 │   │   ├── WorkoutSessionDetails.tsx # Detailed session view with analytics
 │   │   ├── ThemeToggle.tsx          # Dark/light mode toggle
 │   │   └── ThemeProvider.tsx        # Theme context provider
@@ -121,7 +121,7 @@
 - **NEW**: Session completion with notes
 - **NEW**: Exercise progress visualization with set completion status
 
-### Workout Session History (`src/components/WorkoutSessionHistory.tsx`)
+### Past Lifts (`src/components/PastLifts.tsx`)
 - **NEW**: Historical workout sessions display
 - **NEW**: Filtering by split and sorting options
 - **NEW**: Session duration and completion tracking
