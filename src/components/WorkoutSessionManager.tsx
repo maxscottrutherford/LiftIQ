@@ -518,24 +518,22 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
           <div className="space-y-4">
             {session.exerciseLogs.map((exercise, exerciseIndex) => (
               <div key={exercise.id} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <h4 className="font-medium">{exercise.exerciseName}</h4>
-                    {getOriginalExercise(exercise)?.repRange && (
-                      <span className="text-xs bg-muted px-2 py-1 rounded-md">
-                        {getOriginalExercise(exercise)!.repRange.min}-{getOriginalExercise(exercise)!.repRange.max} reps
-                      </span>
-                    )}
+                {/* Exercise Name and Sets Info - Consistent layout */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium truncate">{exercise.exerciseName}</h4>
                   </div>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm text-muted-foreground whitespace-nowrap flex-shrink-0">
                     {exercise.sets.filter(set => set.completed).length}/{exercise.sets.length} sets
                   </span>
                 </div>
+                
+                {/* Set Circles */}
                 <div className="flex space-x-2">
                   {exercise.sets.map((set, setIndex) => (
                     <div
                       key={set.id}
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0 ${
                         set.completed 
                           ? 'bg-success text-success-foreground' 
                           : setIndex === currentPosition?.setIndex && exerciseIndex === currentPosition?.exerciseIndex

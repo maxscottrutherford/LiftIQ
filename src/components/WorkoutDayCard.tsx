@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { WorkoutDay, Exercise, ExerciseFormData } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ExerciseCard } from './ExerciseCard';
 import { ExerciseForm } from './ExerciseForm';
 import { formDataToExercise } from '@/lib/workout-utils';
-import { Plus, Edit2, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Edit2, Trash2, ChevronDown, ChevronUp, Check, X } from 'lucide-react';
 
 interface WorkoutDayCardProps {
   workoutDay: WorkoutDay;
@@ -21,6 +22,15 @@ export function WorkoutDayCard({ workoutDay, onUpdate, onDelete, showActions = t
   const [isAddingExercise, setIsAddingExercise] = useState(false);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [isExercisesExpanded, setIsExercisesExpanded] = useState(isExpandedByDefault);
+  const [isEditingDayName, setIsEditingDayName] = useState(false);
+  const [editedDayName, setEditedDayName] = useState(workoutDay.name);
+
+  // Update edited name when workout day name changes externally
+  useEffect(() => {
+    if (!isEditingDayName) {
+      setEditedDayName(workoutDay.name);
+    }
+  }, [workoutDay.name, isEditingDayName]);
 
   const handleAddExercise = (formData: ExerciseFormData) => {
     const newExercise = formDataToExercise(formData);
@@ -64,6 +74,35 @@ export function WorkoutDayCard({ workoutDay, onUpdate, onDelete, showActions = t
     setEditingExercise(null);
   };
 
+  const handleStartEditDayName = () => {
+    setEditedDayName(workoutDay.name);
+    setIsEditingDayName(true);
+  };
+
+  const handleSaveDayName = () => {
+    if (editedDayName.trim() && editedDayName.trim() !== workoutDay.name) {
+      const updatedDay = {
+        ...workoutDay,
+        name: editedDayName.trim(),
+      };
+      onUpdate(updatedDay);
+    }
+    setIsEditingDayName(false);
+  };
+
+  const handleCancelEditDayName = () => {
+    setEditedDayName(workoutDay.name);
+    setIsEditingDayName(false);
+  };
+
+  const handleDayNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSaveDayName();
+    } else if (e.key === 'Escape') {
+      handleCancelEditDayName();
+    }
+  };
+
   if (editingExercise) {
     const formData: ExerciseFormData = {
       name: editingExercise.name,
@@ -94,32 +133,85 @@ export function WorkoutDayCard({ workoutDay, onUpdate, onDelete, showActions = t
       <CardHeader>
         <div className="flex items-center justify-between">
           <div 
-            className="flex items-center space-x-3 cursor-pointer flex-1"
-            onClick={() => !isRestDay && setIsExercisesExpanded(!isExercisesExpanded)}
+            className="flex items-center space-x-3 flex-1"
           >
-            <CardTitle className={`text-xl`}>
-              {workoutDay.name}
-            </CardTitle>
-            {!isRestDay && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
+            {isEditingDayName ? (
+              <div className="flex items-center space-x-2 flex-1">
+                <Input
+                  value={editedDayName}
+                  onChange={(e) => setEditedDayName(e.target.value)}
+                  onKeyDown={handleDayNameKeyDown}
+                  className="text-xl font-semibold h-auto py-1"
+                  autoFocus
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSaveDayName();
+                  }}
+                  className="h-7 w-7 p-0"
+                >
+                  <Check className="h-4 w-4 text-success" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCancelEditDayName();
+                  }}
+                  className="h-7 w-7 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div
+                className="flex items-center space-x-3 cursor-pointer flex-1"
+                onClick={() => !isRestDay && setIsExercisesExpanded(!isExercisesExpanded)}
               >
-                {isExercisesExpanded ? (
-                  <ChevronUp className="h-4 w-4" />
-                ) : (
-                  <ChevronDown className="h-4 w-4" />
+                <CardTitle className={`text-xl`}>
+                  {workoutDay.name}
+                </CardTitle>
+                {!isRestDay && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                  >
+                    {isExercisesExpanded ? (
+                      <ChevronUp className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
+                  </Button>
                 )}
-              </Button>
+              </div>
             )}
           </div>
-          {showActions && (
+          {showActions && !isEditingDayName && (
             <div className="flex space-x-1">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onDelete(workoutDay.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStartEditDayName();
+                }}
+                className="h-8 w-8 p-0"
+              >
+                <Edit2 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(workoutDay.id);
+                }}
                 className="h-8 w-8 p-0 text-destructive hover:text-destructive"
               >
                 <Trash2 className="h-4 w-4" />
