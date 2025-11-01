@@ -3,7 +3,10 @@
 import { WorkoutSplit, WorkoutSession } from '@/lib/types'
 import { createClient } from './client'
 
-const supabase = createClient()
+// Helper to get a fresh client instance
+function getSupabaseClient() {
+  return createClient()
+}
 
 interface DatabaseWorkoutSplit {
   id: string
@@ -37,10 +40,39 @@ interface DatabaseWorkoutSession {
 // ============================================
 
 export async function getWorkoutSplits(): Promise<WorkoutSplit[]> {
+  const supabase = getSupabaseClient()
   try {
+    // Try to get session first (reads from cookies)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) {
+      // Fallback to getUser if session doesn't have user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        console.warn('No authenticated user found - session:', !!session, 'user:', !!user)
+        return []
+      }
+      const { data, error } = await supabase
+        .from('workout_splits')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      
+      return (data || []).map((item: DatabaseWorkoutSplit) => ({
+        id: item.id,
+        name: item.name,
+        description: item.description || undefined,
+        days: (item.days || []) as unknown as WorkoutSplit['days'],
+        createdAt: new Date(item.created_at),
+        updatedAt: new Date(item.updated_at),
+      }))
+    }
+
     const { data, error } = await supabase
       .from('workout_splits')
       .select('*')
+      .eq('user_id', session.user.id)
       .order('created_at', { ascending: false })
 
     if (error) throw error
@@ -61,11 +93,19 @@ export async function getWorkoutSplits(): Promise<WorkoutSplit[]> {
 }
 
 export async function saveWorkoutSplit(split: WorkoutSplit): Promise<WorkoutSplit | null> {
+  const supabase = getSupabaseClient()
   try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id || (await supabase.auth.getUser()).data.user?.id
+    if (!userId) {
+      console.error('No authenticated user found when saving workout split')
+      return null
+    }
+    
     const { data, error } = await supabase
       .from('workout_splits')
       .insert({
-        user_id: (await supabase.auth.getUser()).data.user?.id,
+        user_id: userId,
         name: split.name,
         description: split.description || null,
         days: split.days,
@@ -90,7 +130,16 @@ export async function saveWorkoutSplit(split: WorkoutSplit): Promise<WorkoutSpli
 }
 
 export async function updateWorkoutSplit(split: WorkoutSplit): Promise<WorkoutSplit | null> {
+  const supabase = getSupabaseClient()
   try {
+    // Get current user ID for security
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id || (await supabase.auth.getUser()).data.user?.id
+    if (!userId) {
+      console.error('No authenticated user found')
+      return null
+    }
+
     const { data, error } = await supabase
       .from('workout_splits')
       .update({
@@ -99,6 +148,7 @@ export async function updateWorkoutSplit(split: WorkoutSplit): Promise<WorkoutSp
         days: split.days,
       })
       .eq('id', split.id)
+      .eq('user_id', userId)
       .select()
       .single()
 
@@ -119,11 +169,21 @@ export async function updateWorkoutSplit(split: WorkoutSplit): Promise<WorkoutSp
 }
 
 export async function deleteWorkoutSplit(splitId: string): Promise<boolean> {
+  const supabase = getSupabaseClient()
   try {
+    // Get current user ID for security
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id || (await supabase.auth.getUser()).data.user?.id
+    if (!userId) {
+      console.error('No authenticated user found')
+      return false
+    }
+
     const { error } = await supabase
       .from('workout_splits')
       .delete()
       .eq('id', splitId)
+      .eq('user_id', userId)
 
     if (error) throw error
     return true
@@ -138,10 +198,44 @@ export async function deleteWorkoutSplit(splitId: string): Promise<boolean> {
 // ============================================
 
 export async function getWorkoutSessions(): Promise<WorkoutSession[]> {
+  const supabase = getSupabaseClient()
   try {
+    // Try to get session first (reads from cookies)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) {
+      // Fallback to getUser if session doesn't have user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        console.warn('No authenticated user found - session:', !!session, 'user:', !!user)
+        return []
+      }
+      const { data, error } = await supabase
+        .from('workout_sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('started_at', { ascending: false })
+      
+      if (error) throw error
+      
+      return (data || []).map((item: DatabaseWorkoutSession) => ({
+        id: item.id,
+        splitId: item.split_id,
+        splitName: item.split_name,
+        dayId: item.day_id,
+        dayName: item.day_name,
+        startedAt: new Date(item.started_at),
+        completedAt: item.completed_at ? new Date(item.completed_at) : undefined,
+        status: item.status as 'active' | 'completed' | 'paused',
+        exerciseLogs: (item.exercise_logs || []) as unknown as WorkoutSession['exerciseLogs'],
+        totalDuration: item.total_duration ?? undefined,
+        notes: item.notes ?? undefined,
+      }))
+    }
+
     const { data, error } = await supabase
       .from('workout_sessions')
       .select('*')
+      .eq('user_id', session.user.id)
       .order('started_at', { ascending: false })
 
     if (error) throw error
@@ -167,10 +261,20 @@ export async function getWorkoutSessions(): Promise<WorkoutSession[]> {
 }
 
 export async function getActiveWorkoutSessions(): Promise<WorkoutSession[]> {
+  const supabase = getSupabaseClient()
   try {
+    // Get current user ID
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id || (await supabase.auth.getUser()).data.user?.id
+    if (!userId) {
+      console.warn('No authenticated user found')
+      return []
+    }
+
     const { data, error } = await supabase
       .from('workout_sessions')
       .select('*')
+      .eq('user_id', userId)
       .eq('status', 'active')
       .order('started_at', { ascending: false })
 
@@ -197,11 +301,19 @@ export async function getActiveWorkoutSessions(): Promise<WorkoutSession[]> {
 }
 
 export async function saveWorkoutSession(session: WorkoutSession): Promise<WorkoutSession | null> {
+  const supabase = getSupabaseClient()
   try {
+    const { data: { session: authSession } } = await supabase.auth.getSession()
+    const userId = authSession?.user?.id || (await supabase.auth.getUser()).data.user?.id
+    if (!userId) {
+      console.error('No authenticated user found when saving workout session')
+      return null
+    }
+    
     const { data, error } = await supabase
       .from('workout_sessions')
       .insert({
-        user_id: (await supabase.auth.getUser()).data.user?.id,
+        user_id: userId,
         split_id: session.splitId,
         split_name: session.splitName,
         day_id: session.dayId,
@@ -238,7 +350,16 @@ export async function saveWorkoutSession(session: WorkoutSession): Promise<Worko
 }
 
 export async function updateWorkoutSession(session: WorkoutSession): Promise<WorkoutSession | null> {
+  const supabase = getSupabaseClient()
   try {
+    // Get current user ID for security
+    const { data: { session: authSession } } = await supabase.auth.getSession()
+    const userId = authSession?.user?.id || (await supabase.auth.getUser()).data.user?.id
+    if (!userId) {
+      console.error('No authenticated user found')
+      return null
+    }
+
     const { data, error } = await supabase
       .from('workout_sessions')
       .update({
@@ -254,6 +375,7 @@ export async function updateWorkoutSession(session: WorkoutSession): Promise<Wor
         notes: session.notes || null,
       })
       .eq('id', session.id)
+      .eq('user_id', userId)
       .select()
       .single()
 
@@ -279,11 +401,21 @@ export async function updateWorkoutSession(session: WorkoutSession): Promise<Wor
 }
 
 export async function deleteWorkoutSession(sessionId: string): Promise<boolean> {
+  const supabase = getSupabaseClient()
   try {
+    // Get current user ID for security
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id || (await supabase.auth.getUser()).data.user?.id
+    if (!userId) {
+      console.error('No authenticated user found')
+      return false
+    }
+
     const { error } = await supabase
       .from('workout_sessions')
       .delete()
       .eq('id', sessionId)
+      .eq('user_id', userId)
 
     if (error) throw error
     return true
@@ -298,20 +430,29 @@ export async function deleteWorkoutSession(sessionId: string): Promise<boolean> 
 // ============================================
 
 export async function clearAllUserData(): Promise<boolean> {
+  const supabase = getSupabaseClient()
   try {
-    // Delete all sessions
+    // Get current user ID
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id || (await supabase.auth.getUser()).data.user?.id
+    if (!userId) {
+      console.error('No authenticated user found')
+      return false
+    }
+
+    // Delete all sessions for this user
     const { error: sessionsError } = await supabase
       .from('workout_sessions')
       .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000') // Delete all (this condition is always true)
+      .eq('user_id', userId)
 
     if (sessionsError) throw sessionsError
 
-    // Delete all splits
+    // Delete all splits for this user
     const { error: splitsError } = await supabase
       .from('workout_splits')
       .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000') // Delete all
+      .eq('user_id', userId)
 
     if (splitsError) throw splitsError
 
