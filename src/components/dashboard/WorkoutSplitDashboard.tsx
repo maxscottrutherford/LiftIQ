@@ -29,7 +29,7 @@ interface WorkoutSplitDashboardProps {
 }
 
 export function WorkoutSplitDashboard({ initialView = 'splits' }: WorkoutSplitDashboardProps = {}) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [splits, setSplits] = useState<WorkoutSplit[]>([]);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [isCreating, setIsCreating] = useState(false);
@@ -119,9 +119,16 @@ export function WorkoutSplitDashboard({ initialView = 'splits' }: WorkoutSplitDa
   // Load splits and sessions from Supabase on mount, but only after user is confirmed
   useEffect(() => {
     const loadData = async () => {
-      // Wait for user to be available
+      // Wait for auth to finish loading first
+      if (authLoading) {
+        console.log('Waiting for auth to finish loading...');
+        return;
+      }
+
+      // If auth is done but no user, set loading to false and return
       if (!user?.id) {
-        console.log('Waiting for user authentication...');
+        console.log('No authenticated user found after auth loaded');
+        setLoading(false);
         return;
       }
 
@@ -166,7 +173,7 @@ export function WorkoutSplitDashboard({ initialView = 'splits' }: WorkoutSplitDa
     };
 
     loadData();
-  }, [user?.id]);
+  }, [user?.id, authLoading]);
 
   const handleCreateSplit = () => {
     setEditingSplit(null);

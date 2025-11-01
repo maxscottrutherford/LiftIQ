@@ -46,8 +46,10 @@ export default function SignUp() {
 
       if (error) throw error
 
-      // Redirect to dashboard on success
-      router.push('/dashboard')
+      // For Chrome compatibility, always do a full page reload after sign up
+      // This ensures cookies are properly read by the browser
+      // The middleware will handle refreshing the session on the next request
+      window.location.href = '/dashboard'
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred during sign up')
       setLoading(false)
