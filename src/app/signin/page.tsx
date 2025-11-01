@@ -24,15 +24,29 @@ export default function SignIn() {
     setLoading(true)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (error) throw error
 
+      // Wait a moment for cookies to be set
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Verify session was set
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        console.error('Session not set after sign in')
+        // Force reload to ensure cookies are read
+        window.location.href = '/dashboard'
+        return
+      }
+
       // Redirect to dashboard on success
       router.push('/dashboard')
+      // Force a refresh to ensure all components see the new session
+      router.refresh()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Invalid email or password')
     } finally {

@@ -42,41 +42,49 @@ interface DatabaseWorkoutSession {
 export async function getWorkoutSplits(): Promise<WorkoutSplit[]> {
   const supabase = getSupabaseClient()
   try {
-    // Try to get session first (reads from cookies)
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session?.user) {
+    // Try to get session first (reads from cookies/localStorage)
+    let userId: string | null = null
+    
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    if (sessionError) {
+      console.warn('Session error:', sessionError)
+    }
+    
+    if (session?.user?.id) {
+      userId = session.user.id
+      console.log('Got user ID from session:', userId)
+    } else {
       // Fallback to getUser if session doesn't have user
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        console.warn('No authenticated user found - session:', !!session, 'user:', !!user)
-        return []
+      console.log('Session missing user, trying getUser()...')
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError) {
+        console.error('getUser error:', userError)
       }
-      const { data, error } = await supabase
-        .from('workout_splits')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-      
-      if (error) throw error
-      
-      return (data || []).map((item: DatabaseWorkoutSplit) => ({
-        id: item.id,
-        name: item.name,
-        description: item.description || undefined,
-        days: (item.days || []) as unknown as WorkoutSplit['days'],
-        createdAt: new Date(item.created_at),
-        updatedAt: new Date(item.updated_at),
-      }))
+      if (user?.id) {
+        userId = user.id
+        console.log('Got user ID from getUser:', userId)
+      }
+    }
+    
+    if (!userId) {
+      console.warn('No authenticated user found - session:', !!session, 'session.user:', !!session?.user)
+      return []
     }
 
+    console.log('Fetching workout splits for user:', userId)
     const { data, error } = await supabase
       .from('workout_splits')
       .select('*')
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
 
-    if (error) throw error
+    if (error) {
+      console.error('Database error fetching splits:', error)
+      throw error
+    }
 
+    console.log(`Fetched ${data?.length || 0} workout splits`)
+    
     // Convert database format to app format
     return (data || []).map((item: DatabaseWorkoutSplit) => ({
       id: item.id,
@@ -200,42 +208,36 @@ export async function deleteWorkoutSplit(splitId: string): Promise<boolean> {
 export async function getWorkoutSessions(): Promise<WorkoutSession[]> {
   const supabase = getSupabaseClient()
   try {
-    // Try to get session first (reads from cookies)
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session?.user) {
+    // Try to get session first (reads from cookies/localStorage)
+    let userId: string | null = null
+    
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    if (sessionError) {
+      console.warn('Session error:', sessionError)
+    }
+    
+    if (session?.user?.id) {
+      userId = session.user.id
+    } else {
       // Fallback to getUser if session doesn't have user
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        console.warn('No authenticated user found - session:', !!session, 'user:', !!user)
-        return []
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError) {
+        console.error('getUser error:', userError)
       }
-      const { data, error } = await supabase
-        .from('workout_sessions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('started_at', { ascending: false })
-      
-      if (error) throw error
-      
-      return (data || []).map((item: DatabaseWorkoutSession) => ({
-        id: item.id,
-        splitId: item.split_id,
-        splitName: item.split_name,
-        dayId: item.day_id,
-        dayName: item.day_name,
-        startedAt: new Date(item.started_at),
-        completedAt: item.completed_at ? new Date(item.completed_at) : undefined,
-        status: item.status as 'active' | 'completed' | 'paused',
-        exerciseLogs: (item.exercise_logs || []) as unknown as WorkoutSession['exerciseLogs'],
-        totalDuration: item.total_duration ?? undefined,
-        notes: item.notes ?? undefined,
-      }))
+      if (user?.id) {
+        userId = user.id
+      }
+    }
+    
+    if (!userId) {
+      console.warn('No authenticated user found for sessions')
+      return []
     }
 
     const { data, error } = await supabase
       .from('workout_sessions')
       .select('*')
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .order('started_at', { ascending: false })
 
     if (error) throw error

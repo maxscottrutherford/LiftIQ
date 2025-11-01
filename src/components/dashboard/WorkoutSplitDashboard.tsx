@@ -116,17 +116,48 @@ export function WorkoutSplitDashboard({ initialView = 'splits' }: WorkoutSplitDa
     }
   }, [user?.id, splits, currentView]);
 
-  // Load splits and sessions from Supabase on mount
+  // Load splits and sessions from Supabase on mount, but only after user is confirmed
   useEffect(() => {
     const loadData = async () => {
+      // Wait for user to be available
+      if (!user?.id) {
+        console.log('Waiting for user authentication...');
+        return;
+      }
+
       setLoading(true);
       try {
-        const [loadedSplits, loadedSessions] = await Promise.all([
-          getWorkoutSplits(),
-          getWorkoutSessions()
-        ]);
+        console.log('Loading workout data for user:', user.id);
+        
+        // Retry logic - sometimes the first call fails due to cookie timing
+        let retries = 3;
+        let loadedSplits: WorkoutSplit[] = [];
+        let loadedSessions: WorkoutSession[] = [];
+        
+        while (retries > 0) {
+          try {
+            [loadedSplits, loadedSessions] = await Promise.all([
+              getWorkoutSplits(),
+              getWorkoutSessions()
+            ]);
+            
+            // If we got data (even if empty), break
+            if (loadedSplits.length >= 0 && loadedSessions.length >= 0) {
+              break;
+            }
+          } catch (error) {
+            console.warn(`Retry attempt ${4 - retries} failed:`, error);
+            retries--;
+            if (retries > 0) {
+              // Wait a bit before retrying
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
+          }
+        }
+        
         setSplits(loadedSplits);
         setSessions(loadedSessions);
+        console.log(`Loaded ${loadedSplits.length} splits and ${loadedSessions.length} sessions`);
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
@@ -135,7 +166,7 @@ export function WorkoutSplitDashboard({ initialView = 'splits' }: WorkoutSplitDa
     };
 
     loadData();
-  }, []);
+  }, [user?.id]);
 
   const handleCreateSplit = () => {
     setEditingSplit(null);
