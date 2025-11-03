@@ -11,6 +11,7 @@ import { ArrowLeft, BarChart3 } from 'lucide-react';
 import { getWorkoutSessions } from '@/lib/supabase/workout-service';
 import { useRouter } from 'next/navigation';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { AIInsights } from './AIInsights';
 
 interface ChartDataPoint {
   date: string;
@@ -134,6 +135,9 @@ export function StatisticsDashboard() {
           </div>
         </div>
       </div>
+
+      {/* AI Insights */}
+      <AIInsights sessions={sessions} />
 
       {/* Exercise Selection */}
       {availableExercises.length > 0 ? (
