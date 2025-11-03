@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { useAuth } from '@/lib/auth-context';
 import { ArrowLeft, Plus, Save, Trash2, CheckCircle, Edit2, ChevronDown, ChevronUp, Play } from 'lucide-react';
+import { saveWorkoutSession, updateWorkoutSession, getActiveWorkoutSessions } from '@/lib/supabase/workout-service';
+import { WorkoutSession, ExerciseLog, SetLog } from '@/lib/types';
+import { generateId } from '@/lib/workout-utils';
 
 interface FreestyleSet {
   id: string;
@@ -30,148 +33,75 @@ interface FreestyleWorkoutManagerProps {
 export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorkoutManagerProps) {
   const { user } = useAuth();
   const userId = user?.id || 'anonymous';
-  const STORAGE_KEY = `freestyle_workout_${userId}`;
+  
+  // Track if session has been saved to database
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Clean up old freestyle workouts from other users on mount
+  // Initialize state
+  const [workoutName, setWorkoutName] = useState('');
+  const [workoutNotes, setWorkoutNotes] = useState('');
+  const [sets, setSets] = useState<FreestyleSet[]>([]);
+  const [startedAt, setStartedAt] = useState<Date>(new Date());
+
+  // Check for active freestyle workout in database on mount
   useEffect(() => {
-    try {
-      if (user?.id) {
-        const allKeys = Object.keys(localStorage);
-        allKeys.forEach(key => {
-          if (key.startsWith('freestyle_workout_') && !key.includes(user.id)) {
-            localStorage.removeItem(key);
-          }
-        });
+    const loadActiveSession = async () => {
+      if (!user?.id) {
+        setIsLoading(false);
+        return;
       }
-    } catch (error) {
-      console.error('Error cleaning up localStorage:', error);
-    }
-  }, [user?.id]);
 
-  // Check for active workout on mount to show alert
-  useEffect(() => {
-    if (!user?.id) return;
-    
-    try {
-      const freestyleKey = `freestyle_workout_${user.id}`;
-      const freestyleData = localStorage.getItem(freestyleKey);
-      if (freestyleData) {
-        try {
-          const parsed = JSON.parse(freestyleData);
-          const now = Date.now();
-          const workoutAge = now - parsed.timestamp;
-          const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+      try {
+        const activeSessions = await getActiveWorkoutSessions();
+        // Find active freestyle session (splitId === 'freestyle')
+        const activeSession = activeSessions.find(s => s.splitId === 'freestyle');
+
+        if (activeSession && activeSession.exerciseLogs.length > 0) {
+          // Restore active freestyle session from database
+          setWorkoutName(activeSession.dayName);
+          if (activeSession.notes) {
+            setWorkoutNotes(activeSession.notes);
+          }
+          setStartedAt(activeSession.startedAt);
+          setSessionId(activeSession.id);
           
-          // Show active workout only if user has entered data (sets or workout name)
-          const hasData = (parsed.sets?.length > 0) || (parsed.workoutName?.trim()?.length > 0);
-          if (parsed.userId === user.id && workoutAge < maxAge && hasData) {
-            setActiveWorkoutInfo({
-              workoutName: parsed.workoutName || 'Freestyle Workout',
-              startedAt: new Date(parsed.startedAt || parsed.timestamp),
-              setCount: parsed.sets?.length || 0,
+          // Convert ExerciseLog back to FreestyleSet format
+          const restoredSets: FreestyleSet[] = [];
+          activeSession.exerciseLogs.forEach(exerciseLog => {
+            exerciseLog.sets.forEach(set => {
+              restoredSets.push({
+                id: set.id,
+                exerciseName: exerciseLog.exerciseName,
+                setType: set.type,
+                weight: set.weight,
+                reps: set.reps,
+                rpe: set.rpe,
+                rir: set.rir,
+                notes: exerciseLog.notes,
+              });
             });
-            setShowActiveWorkoutAlert(true);
-          } else {
-            // Only remove if expired or wrong user or no data
-            if (workoutAge >= maxAge || parsed.userId !== user.id || !hasData) {
-              localStorage.removeItem(freestyleKey);
-            }
-            setShowActiveWorkoutAlert(false);
-            setActiveWorkoutInfo(null);
-          }
-        } catch {
-          setShowActiveWorkoutAlert(false);
-          setActiveWorkoutInfo(null);
+          });
+          setSets(restoredSets);
+          
+          // Show alert to resume
+          setActiveWorkoutInfo({
+            workoutName: activeSession.dayName,
+            startedAt: activeSession.startedAt,
+            setCount: restoredSets.length,
+          });
+          setShowActiveWorkoutAlert(true);
         }
-      } else {
-        setShowActiveWorkoutAlert(false);
-        setActiveWorkoutInfo(null);
+      } catch (error) {
+        console.error('Error loading active freestyle session:', error);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Error checking for active workout:', error);
-      setShowActiveWorkoutAlert(false);
-      setActiveWorkoutInfo(null);
-    }
+    };
+
+    loadActiveSession();
   }, [user?.id]);
-
-  // Initialize state - try to restore from localStorage first
-  const [workoutName, setWorkoutName] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const now = Date.now();
-        const workoutAge = now - parsed.timestamp;
-        const maxAge = 24 * 60 * 60 * 1000; // 24 hours
-        
-        if (parsed.userId === userId && workoutAge < maxAge) {
-          return parsed.workoutName || '';
-        } else {
-          localStorage.removeItem(STORAGE_KEY);
-        }
-      }
-    } catch (error) {
-      console.error('Error restoring workout name:', error);
-    }
-    return '';
-  });
-
-  const [workoutNotes, setWorkoutNotes] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const now = Date.now();
-        const workoutAge = now - parsed.timestamp;
-        const maxAge = 24 * 60 * 60 * 1000;
-        
-        if (parsed.userId === userId && workoutAge < maxAge) {
-          return parsed.workoutNotes || '';
-        }
-      }
-    } catch (error) {
-      console.error('Error restoring workout notes:', error);
-    }
-    return '';
-  });
-
-  const [sets, setSets] = useState<FreestyleSet[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const now = Date.now();
-        const workoutAge = now - parsed.timestamp;
-        const maxAge = 24 * 60 * 60 * 1000;
-        
-        if (parsed.userId === userId && workoutAge < maxAge) {
-          return parsed.sets || [];
-        }
-      }
-    } catch (error) {
-      console.error('Error restoring sets:', error);
-    }
-    return [];
-  });
-
-  const [startedAt] = useState<Date>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const now = Date.now();
-        const workoutAge = now - parsed.timestamp;
-        const maxAge = 24 * 60 * 60 * 1000;
-        
-        if (parsed.userId === userId && workoutAge < maxAge && parsed.startedAt) {
-          return new Date(parsed.startedAt);
-        }
-      }
-    } catch (error) {
-      console.error('Error restoring startedAt:', error);
-    }
-    return new Date();
-  });
 
   const [isAddingSet, setIsAddingSet] = useState(false);
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
@@ -202,9 +132,6 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
   };
 
 
-  const generateId = () => {
-    return Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
-  };
 
   const resetForm = () => {
     setCurrentExerciseName('');
@@ -277,69 +204,182 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
     setSets(prev => prev.filter(s => s.id !== setId));
   };
 
-  // Save freestyle workout to localStorage whenever state changes
-  // Always save if there's any data (even just startedAt), so we can detect active workouts
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        workoutName,
-        workoutNotes,
-        sets,
-        startedAt: startedAt.toISOString(),
-        userId,
-        timestamp: Date.now(),
-      }));
-    } catch (error) {
-      console.error('Error saving freestyle workout to localStorage:', error);
-    }
-  }, [workoutName, workoutNotes, sets, startedAt, STORAGE_KEY, userId]);
+  // Convert FreestyleSet[] to WorkoutSession format - using useCallback to prevent recreation
+  const convertToWorkoutSession = useCallback((): WorkoutSession => {
+    // Group sets by exercise name to create ExerciseLog objects
+    const exerciseGroups = new Map<string, FreestyleSet[]>();
+    sets.forEach(set => {
+      const exerciseName = set.exerciseName;
+      if (!exerciseGroups.has(exerciseName)) {
+        exerciseGroups.set(exerciseName, []);
+      }
+      exerciseGroups.get(exerciseName)!.push(set);
+    });
 
-  const handleComplete = () => {
+    // Create a map to track original insertion order
+    const setOrderMap = new Map<string, number>();
+    sets.forEach((set, index) => {
+      setOrderMap.set(set.id, index);
+    });
+
+    const exerciseLogs: ExerciseLog[] = Array.from(exerciseGroups.entries()).map(([exerciseName, exerciseSets]) => {
+      // Sort sets by original insertion order
+      const sortedSets = exerciseSets.sort((a, b) => {
+        const orderA = setOrderMap.get(a.id) ?? 0;
+        const orderB = setOrderMap.get(b.id) ?? 0;
+        return orderA - orderB;
+      });
+
+      // Convert FreestyleSet to SetLog format
+      const setLogs: SetLog[] = sortedSets.map((set, index) => ({
+        id: set.id || generateId(),
+        setNumber: index + 1,
+        type: set.setType,
+        weight: set.weight,
+        reps: set.reps,
+        rpe: set.rpe,
+        rir: set.rir,
+        completed: true, // All sets in freestyle workout are considered completed
+        completedAt: new Date(),
+      }));
+
+      return {
+        id: generateId(),
+        exerciseId: generateId(), // Generate a placeholder exercise ID
+        exerciseName,
+        sets: setLogs,
+        completedAt: new Date(),
+        notes: exerciseSets.find(s => s.notes)?.notes,
+      };
+    });
+
+    return {
+      id: sessionId || generateId(),
+      splitId: 'freestyle',
+      splitName: 'Freestyle Workout',
+      dayId: 'freestyle',
+      dayName: workoutName || 'Freestyle Workout',
+      startedAt,
+      status: 'active',
+      exerciseLogs,
+      notes: workoutNotes.trim() || undefined,
+    };
+  }, [sets, workoutName, workoutNotes, startedAt, sessionId]);
+
+  // Save or update session in database when first set is added or when sets change
+  useEffect(() => {
+    if (!user?.id || isSaving || sets.length === 0 || isLoading) return;
+
+    const saveOrUpdateSession = async () => {
+      setIsSaving(true);
+      try {
+        const sessionToSave = convertToWorkoutSession();
+
+        if (sessionId) {
+          // Update existing session
+          const updated = await updateWorkoutSession(sessionToSave);
+          if (updated) {
+            setSessionId(updated.id);
+          }
+        } else {
+          // Save new session
+          const saved = await saveWorkoutSession(sessionToSave);
+          if (saved) {
+            setSessionId(saved.id);
+          }
+        }
+      } catch (error) {
+        console.error('Error saving/updating freestyle session:', error);
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    saveOrUpdateSession();
+  }, [sets, workoutName, workoutNotes, startedAt, sessionId, user?.id, isSaving, isLoading, convertToWorkoutSession]);
+
+  const handleComplete = async () => {
     if (!workoutName.trim() || sets.length === 0) return;
-    // Clear localStorage on completion
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch (error) {
-      console.error('Error clearing localStorage:', error);
+    
+    const sessionToComplete = convertToWorkoutSession();
+    const completedSession: WorkoutSession = {
+      ...sessionToComplete,
+      status: 'completed',
+      completedAt: new Date(),
+      totalDuration: Math.round((new Date().getTime() - startedAt.getTime()) / 60000),
+    };
+
+    // Update session in database to completed status
+    if (sessionId) {
+      const updated = await updateWorkoutSession(completedSession);
+      if (updated) {
+        // Set flag for celebration on home page
+        try {
+          sessionStorage.setItem('workout_completed', 'true');
+        } catch (error) {
+          console.error('Error setting workout completion flag:', error);
+        }
+        onComplete(workoutName.trim(), sets, workoutNotes.trim() || undefined, startedAt);
+        return;
+      }
     }
-    // Set flag for celebration on home page
-    try {
-      sessionStorage.setItem('workout_completed', 'true');
-    } catch (error) {
-      console.error('Error setting workout completion flag:', error);
+
+    // If update failed or no sessionId, try saving as new completed session
+    const saved = await saveWorkoutSession(completedSession);
+    if (saved) {
+      // Set flag for celebration on home page
+      try {
+        sessionStorage.setItem('workout_completed', 'true');
+      } catch (error) {
+        console.error('Error setting workout completion flag:', error);
+      }
+      onComplete(workoutName.trim(), sets, workoutNotes.trim() || undefined, startedAt);
     }
-    onComplete(workoutName.trim(), sets, workoutNotes.trim() || undefined, startedAt);
   };
 
   const handleCancel = () => {
-    // Don't clear localStorage here - let the user resume if they navigate back
-    // localStorage will be cleared when they explicitly complete or cancel from the dashboard
+    // Session remains in database with status='active' so user can resume later
     resetForm();
     onCancel();
   };
 
-  const handleCancelActiveWorkout = () => {
-    if (user?.id) {
+  const handleCancelActiveWorkout = async () => {
+    if (sessionId) {
       try {
-        const freestyleKey = `freestyle_workout_${user.id}`;
-        localStorage.removeItem(freestyleKey);
-        setShowActiveWorkoutAlert(false);
-        setActiveWorkoutInfo(null);
-        // Reset state to clear the workout
-        setWorkoutName('');
-        setWorkoutNotes('');
-        setSets([]);
-        setExpandedExercises(new Set());
+        // Delete the active session from database
+        const { deleteWorkoutSession } = await import('@/lib/supabase/workout-service');
+        await deleteWorkoutSession(sessionId);
       } catch (error) {
-        console.error('Error canceling active workout:', error);
+        console.error('Error deleting active workout:', error);
       }
     }
+    setShowActiveWorkoutAlert(false);
+    setActiveWorkoutInfo(null);
+    // Reset state to clear the workout
+    setWorkoutName('');
+    setWorkoutNotes('');
+    setSets([]);
+    setExpandedExercises(new Set());
+    setSessionId(null);
   };
 
   const handleResumeActiveWorkout = () => {
     // Just hide the alert - the workout data is already restored in state
     setShowActiveWorkoutAlert(false);
   };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-6 py-4">
+        <Card>
+          <CardContent className="text-center py-12">
+            <p className="text-muted-foreground">Loading workout...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Show active workout alert instead of regular UI if there's an active workout
   if (showActiveWorkoutAlert && activeWorkoutInfo) {

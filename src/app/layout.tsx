@@ -4,7 +4,6 @@ import "./globals.css";
 import { Suspense } from 'react';
 import { ThemeProvider } from "@/lib/theme-context";
 import { AuthProvider } from "@/lib/auth-context";
-import { MobileInputHandler } from "@/components/common/MobileInputHandler";
 import { ScrollToTop } from "@/components/common/ScrollToTop";
 
 const geistSans = Geist({
@@ -79,7 +78,6 @@ export default function RootLayout({
             <Suspense fallback={null}>
               <ScrollToTop />
             </Suspense>
-            <MobileInputHandler />
             {children}
           </AuthProvider>
         </ThemeProvider>

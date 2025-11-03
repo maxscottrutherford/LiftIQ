@@ -29,7 +29,7 @@ export function MobileInputHandler() {
             block: 'center',
             inline: 'nearest',
           });
-        }, 300);
+        }, 10);
       }
     };
 

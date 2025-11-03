@@ -21,7 +21,8 @@ import {
   deleteWorkoutSplit,
   getWorkoutSessions,
   saveWorkoutSession,
-  deleteWorkoutSession
+  deleteWorkoutSession,
+  getActiveWorkoutSessions
 } from '@/lib/supabase/workout-service';
 
 interface WorkoutSplitDashboardProps {
@@ -41,79 +42,61 @@ export function WorkoutSplitDashboard({ initialView = 'splits' }: WorkoutSplitDa
   const [loading, setLoading] = useState(true);
   const [activeLocalSession, setActiveLocalSession] = useState<{ splitId: string; dayId: string; startedAt: Date } | null>(null);
 
-  // Check for active session in localStorage on mount and when returning to dashboard
+  // Check for active session in database on mount and when returning to dashboard
   useEffect(() => {
-    if (!user?.id) return;
-    
-    // Only check when on splits view (home view handled separately)
-    if (currentView !== 'splits') return;
-    
-    try {
-      // Check for split workout sessions (only if splits are loaded)
-      if (splits.length > 0) {
-        const allKeys = Object.keys(localStorage);
-        const workoutKeys = allKeys.filter(key => 
-          key.startsWith(`workout_session_${user.id}_`)
-        );
+    const checkActiveSession = async () => {
+      if (!user?.id) {
+        setActiveLocalSession(null);
+        return;
+      }
+      
+      // Only check when on splits view (home view handled separately)
+      if (currentView !== 'splits') return;
+      
+      // Wait for splits to be loaded
+      if (splits.length === 0) {
+        setActiveLocalSession(null);
+        return;
+      }
+
+      try {
+        const activeSessions = await getActiveWorkoutSessions();
         
-        if (workoutKeys.length > 0) {
-          // Get the most recent workout session
-          const sessionsData = workoutKeys.map(key => {
-            try {
-              const data = JSON.parse(localStorage.getItem(key) || '{}');
-              return { ...data, key };
-            } catch {
-              return null;
-            }
-          }).filter(Boolean);
+        // Filter out freestyle sessions (we only want split workouts here)
+        const splitActiveSessions = activeSessions.filter(s => s.splitId !== 'freestyle');
+        
+        if (splitActiveSessions.length > 0) {
+          // Find the most recent active session that matches one of our splits
+          const matchingSession = splitActiveSessions.find(s => 
+            splits.some(split => split.id === s.splitId)
+          );
           
-          if (sessionsData.length > 0) {
-            const mostRecent = sessionsData[0];
-            // Extract split and day IDs from the key format: workout_session_userId_splitId_dayId
-            // Remove the 'workout_session' prefix and userId
-            const userId = user.id;
-            const keyWithoutPrefix = mostRecent.key.replace(`workout_session_${userId}_`, '');
-            // The key format is now: splitId_dayId
-            // We need to find where splitId ends and dayId begins
-            // Since we need to match it with splits, we'll try each combination
-            let splitId = '';
-            let dayId = '';
+          if (matchingSession) {
+            // Check if there are completed sets
+            const hasCompletedSets = matchingSession.exerciseLogs.some(exercise =>
+              exercise.sets.some(set => set.completed)
+            );
             
-            for (const split of splits) {
-              if (keyWithoutPrefix.startsWith(split.id + '_')) {
-                splitId = split.id;
-                dayId = keyWithoutPrefix.replace(split.id + '_', '');
-                break;
-              }
-            }
-            
-            if (splitId && dayId) {
-              // Only show active session if there are completed sets or any logged data
-              const session = mostRecent.session;
-              const hasCompletedSets = session?.exerciseLogs?.some((exercise: any) =>
-                exercise.sets?.some((set: any) => set.completed)
-              ) || false;
-              
-              // Show if there are completed sets
-              if (hasCompletedSets) {
-                setActiveLocalSession({
-                  splitId,
-                  dayId,
-                  startedAt: new Date(mostRecent.session.startedAt)
-                });
-              } else {
-                setActiveLocalSession(null);
-              }
+            if (hasCompletedSets) {
+              setActiveLocalSession({
+                splitId: matchingSession.splitId,
+                dayId: matchingSession.dayId,
+                startedAt: matchingSession.startedAt
+              });
+              return;
             }
           }
-        } else {
-          // No active sessions found, clear the indicator
-          setActiveLocalSession(null);
         }
+        
+        // No active sessions found
+        setActiveLocalSession(null);
+      } catch (error) {
+        console.error('Error checking for active session:', error);
+        setActiveLocalSession(null);
       }
-    } catch (error) {
-      console.error('Error checking for active session:', error);
-    }
+    };
+
+    checkActiveSession();
   }, [user?.id, splits, currentView]);
 
   // Load splits and sessions from Supabase on mount, but only after user is confirmed
@@ -228,11 +211,19 @@ export function WorkoutSplitDashboard({ initialView = 'splits' }: WorkoutSplitDa
     }
   };
 
-  const handleCancelActiveSession = () => {
+  const handleCancelActiveSession = async () => {
     if (!user?.id || !activeLocalSession) return;
     try {
-      const key = `workout_session_${user.id}_${activeLocalSession.splitId}_${activeLocalSession.dayId}`;
-      localStorage.removeItem(key);
+      // Get the active session from database and delete it
+      const activeSessions = await getActiveWorkoutSessions();
+      const sessionToDelete = activeSessions.find(
+        s => s.splitId === activeLocalSession.splitId && s.dayId === activeLocalSession.dayId
+      );
+      
+      if (sessionToDelete) {
+        await deleteWorkoutSession(sessionToDelete.id);
+      }
+      
       setActiveLocalSession(null);
     } catch (error) {
       console.error('Error canceling active session:', error);

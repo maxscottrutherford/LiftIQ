@@ -16,6 +16,7 @@ import {
 } from '@/lib/workout-utils';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { useAuth } from '@/lib/auth-context';
+import { saveWorkoutSession, updateWorkoutSession, getActiveWorkoutSessions } from '@/lib/supabase/workout-service';
 import { 
   CheckCircle, 
   Clock, 
@@ -37,61 +38,52 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
   const { user } = useAuth();
   const userId = user?.id || 'anonymous';
   
-  // Storage key for saving session state - includes user ID to prevent cross-user data leaks
-  const STORAGE_KEY = `workout_session_${userId}_${split.id}_${dayId}`;
+  // Track if session has been saved to database
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Clean up old sessions from other users on mount
+  // Initialize session on mount - check for active session in database first
+  const [session, setSession] = useState<WorkoutSession | null>(null);
+
+  // Check for active session in database on mount
   useEffect(() => {
-    try {
-      if (user?.id) {
-        // Get all localStorage keys and clean up any workout sessions not belonging to current user
-        const allKeys = Object.keys(localStorage);
-        allKeys.forEach(key => {
-          if (key.startsWith('workout_session_') && !key.includes(user.id)) {
-            localStorage.removeItem(key);
+    const loadActiveSession = async () => {
+      if (!user?.id) {
+        setIsLoading(false);
+        setSession(createWorkoutSession(split, dayId));
+        return;
+      }
+
+      try {
+        const activeSessions = await getActiveWorkoutSessions();
+        // Find active session matching this split and day
+        const activeSession = activeSessions.find(
+          s => s.splitId === split.id && s.dayId === dayId
+        );
+
+        if (activeSession) {
+          // Restore active session from database
+          setSession(activeSession);
+          setSessionId(activeSession.id);
+          if (activeSession.notes) {
+            setSessionNotes(activeSession.notes);
           }
-        });
-      }
-    } catch (error) {
-      console.error('Error cleaning up old sessions:', error);
-    }
-  }, [user?.id]);
-  
-  // Initialize session on mount - try to restore from localStorage first
-  const [session, setSession] = useState<WorkoutSession | null>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Check if this session belongs to the current user and hasn't expired (24 hours)
-        const now = Date.now();
-        const sessionAge = now - parsed.timestamp;
-        const maxAge = 24 * 60 * 60 * 1000; // 24 hours
-        
-        if (parsed.userId === userId && sessionAge < maxAge) {
-          // Restore the session with proper Date objects
-          return {
-            ...parsed.session,
-            startedAt: new Date(parsed.session.startedAt),
-            completedAt: parsed.session.completedAt ? new Date(parsed.session.completedAt) : undefined,
-            exerciseLogs: parsed.session.exerciseLogs.map((log: ExerciseLog) => ({
-              ...log,
-              sets: log.sets.map(set => ({
-                ...set,
-                completedAt: set.completedAt ? new Date(set.completedAt) : undefined
-              }))
-            }))
-          };
         } else {
-          // Session expired or belongs to different user, remove it
-          localStorage.removeItem(STORAGE_KEY);
+          // Create new session
+          setSession(createWorkoutSession(split, dayId));
         }
+      } catch (error) {
+        console.error('Error loading active session:', error);
+        // Fallback to creating new session
+        setSession(createWorkoutSession(split, dayId));
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Error restoring session from localStorage:', error);
-    }
-    return createWorkoutSession(split, dayId);
-  });
+    };
+
+    loadActiveSession();
+  }, [user?.id, split.id, dayId]);
   
   const [isResting, setIsResting] = useState(false);
   const [restEndTime, setRestEndTime] = useState<number | null>(null);
@@ -99,37 +91,49 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [lastUndoneSetData, setLastUndoneSetData] = useState<Partial<SetLog> | null>(null);
 
-  // Save session to localStorage whenever it changes
+  // Save or update session in database when first set is completed or when session changes
   useEffect(() => {
-    if (session) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({
-          session,
-          notes: sessionNotes,
-          timestamp: Date.now(),
-          userId: userId
-        }));
-      } catch (error) {
-        console.error('Error saving session to localStorage:', error);
-      }
-    }
-  }, [session, sessionNotes, STORAGE_KEY, userId]);
+    if (!session || !user?.id || isSaving) return;
 
-  // Restore session notes from localStorage on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.notes) {
-          setSessionNotes(parsed.notes);
+    // Check if any set has been completed
+    const hasCompletedSets = session.exerciseLogs.some(exercise => 
+      exercise.sets.some(set => set.completed)
+    );
+
+    // Only save to database once the first set is completed
+    if (!hasCompletedSets) return;
+
+    const saveOrUpdateSession = async () => {
+      setIsSaving(true);
+      try {
+        const sessionToSave = {
+          ...session,
+          notes: sessionNotes.trim() || undefined
+        };
+
+        if (sessionId) {
+          // Update existing session
+          const updated = await updateWorkoutSession(sessionToSave);
+          if (updated) {
+            setSessionId(updated.id);
+          }
+        } else {
+          // Save new session
+          const saved = await saveWorkoutSession(sessionToSave);
+          if (saved) {
+            setSessionId(saved.id);
+            setSession(saved); // Update session with saved data (includes DB-generated ID)
+          }
         }
+      } catch (error) {
+        console.error('Error saving/updating session:', error);
+      } finally {
+        setIsSaving(false);
       }
-    } catch (error) {
-      console.error('Error restoring notes from localStorage:', error);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    };
+
+    saveOrUpdateSession();
+  }, [session, sessionNotes, sessionId, user?.id, isSaving]);
 
   // Update current time for duration display and rest timer
   useEffect(() => {
@@ -146,7 +150,7 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
     return () => clearInterval(interval);
   }, [isResting, restEndTime]);
 
-  if (!session) {
+  if (isLoading || !session) {
     return (
       <div className="max-w-4xl mx-auto py-8">
         <Card>
@@ -284,29 +288,42 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
     setIsResting(true);
   };
 
-  const handleCompleteSession = () => {
+  const handleCompleteSession = async () => {
     const completedSession = {
       ...completeWorkoutSession(session),
       notes: sessionNotes.trim() || undefined
     };
-    // Clear localStorage on completion
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch (error) {
-      console.error('Error clearing session from localStorage:', error);
+
+    // Update session in database to completed status
+    if (sessionId) {
+      const updated = await updateWorkoutSession(completedSession);
+      if (updated) {
+        // Set flag for celebration on home page
+        try {
+          sessionStorage.setItem('workout_completed', 'true');
+        } catch (error) {
+          console.error('Error setting workout completion flag:', error);
+        }
+        onComplete(updated);
+        return;
+      }
     }
-    // Set flag for celebration on home page
-    try {
-      sessionStorage.setItem('workout_completed', 'true');
-    } catch (error) {
-      console.error('Error setting workout completion flag:', error);
+
+    // If update failed or no sessionId, try saving as new completed session
+    const saved = await saveWorkoutSession(completedSession);
+    if (saved) {
+      // Set flag for celebration on home page
+      try {
+        sessionStorage.setItem('workout_completed', 'true');
+      } catch (error) {
+        console.error('Error setting workout completion flag:', error);
+      }
+      onComplete(saved);
     }
-    onComplete(completedSession);
   };
 
   const handleCancel = () => {
-    // Don't clear localStorage - keep the session for resuming
-    // The session will remain in localStorage and appear on dashboard
+    // Session remains in database with status='active' so user can resume later
     onCancel();
   };
 
