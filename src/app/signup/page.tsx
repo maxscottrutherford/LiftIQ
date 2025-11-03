@@ -60,7 +60,7 @@ export default function SignUp() {
     <main className="min-h-screen bg-background">
       <ThemeToggle />
       
-      <div className="flex items-center justify-center min-h-screen px-4">
+      <div className="flex items-center justify-center py-8 px-4">
         <div className="w-full max-w-md">
           {/* Back Button */}
           <Button 

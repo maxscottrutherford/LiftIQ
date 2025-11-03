@@ -5,7 +5,7 @@ import { Dumbbell, TrendingUp, Calendar, Target } from "lucide-react"
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-background py-8">
       {/* Theme Toggle */}
       <ThemeToggle />
       
@@ -50,7 +50,7 @@ export default function Home() {
               </div>
               <h3 className="font-semibold mb-2">Track Progress</h3>
               <p className="text-sm text-muted-foreground">
-                Monitor your growth with detailed analytics
+                Monitor your growth with detailed analytics and charts
               </p>
             </div>
 
