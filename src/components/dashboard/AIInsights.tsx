@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { WorkoutSession } from '@/lib/types';
+import { useState, useEffect, useMemo } from 'react';
+import { WorkoutSession, ExerciseLog, SetLog } from '@/lib/types';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart3 } from 'lucide-react';
 import { WorkoutRecommendation } from '@/lib/ai-analysis/types';
 import { EnhancedWorkoutAnalysis } from '@/lib/ai-analysis/ml-integration';
 import { analyzeWorkoutsWithML } from '@/lib/ai-analysis/ml-integration';
@@ -27,29 +29,53 @@ import {
 interface AIInsightsProps {
   sessions: WorkoutSession[];
   className?: string;
+  selectedExercise?: string;
+  onExerciseChange?: (exercise: string) => void;
 }
 
-export function AIInsights({ sessions, className }: AIInsightsProps) {
+export function AIInsights({ sessions, className, selectedExercise: externalSelectedExercise, onExerciseChange }: AIInsightsProps) {
   const [analysis, setAnalysis] = useState<EnhancedWorkoutAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
-  const [mlTraining, setMlTraining] = useState(false);
+  const [internalSelectedExercise, setInternalSelectedExercise] = useState<string>('');
   const [expandedRecommendations, setExpandedRecommendations] = useState<Set<string>>(new Set());
   const [expandedPredictions, setExpandedPredictions] = useState<Set<string>>(new Set());
+
+  // Use external selectedExercise if provided, otherwise use internal state
+  const selectedExercise = externalSelectedExercise !== undefined ? externalSelectedExercise : internalSelectedExercise;
+  const setSelectedExercise = (exercise: string) => {
+    if (onExerciseChange) {
+      onExerciseChange(exercise);
+    } else {
+      setInternalSelectedExercise(exercise);
+    }
+  };
+
+  // Extract all unique exercise names from all sessions
+  const availableExercises = useMemo(() => {
+    const exerciseNames = new Set<string>();
+    sessions.forEach(session => {
+      session.exerciseLogs.forEach(exercise => {
+        if (exercise.exerciseName && exercise.exerciseName.trim()) {
+          exerciseNames.add(exercise.exerciseName.trim());
+        }
+      });
+    });
+    return Array.from(exerciseNames).sort();
+  }, [sessions]);
+
+  // Set the first exercise as default when exercises are loaded (only if using internal state)
+  useEffect(() => {
+    if (availableExercises.length > 0 && !selectedExercise && externalSelectedExercise === undefined) {
+      setInternalSelectedExercise(availableExercises[0]);
+    }
+  }, [availableExercises, selectedExercise, externalSelectedExercise]);
 
   useEffect(() => {
     const performAnalysis = async () => {
       setLoading(true);
       try {
-        // Check if we should retrain (every 10 sessions or first time)
-        const shouldRetrain = sessions.length > 0 && (sessions.length % 10 === 0 || sessions.length < 10);
-        
-        if (shouldRetrain && sessions.length >= 3) {
-          setMlTraining(true);
-        }
-
         const result = await analyzeWorkoutsWithML(sessions, {
           useML: true,
-          retrainModel: shouldRetrain && sessions.length >= 3,
           lookbackDays: 30,
           minSessions: 2, // Lower threshold to show predictions sooner
         });
@@ -59,7 +85,6 @@ export function AIInsights({ sessions, className }: AIInsightsProps) {
         console.error('Error analyzing workouts:', error);
       } finally {
         setLoading(false);
-        setMlTraining(false);
       }
     };
 
@@ -70,6 +95,83 @@ export function AIInsights({ sessions, className }: AIInsightsProps) {
     }
   }, [sessions]);
 
+  // Filter exercise-specific data by selected exercise - MUST be before any conditional returns
+  const filteredExerciseData = useMemo(() => {
+    if (!analysis || !selectedExercise) {
+      return {
+        predictions: null,
+        patterns: [],
+        recommendations: [],
+      };
+    }
+
+    // Filter predictions by exercise name
+    const filteredPredictions = analysis.weightPredictions ? (() => {
+      const predictions = Array.from(analysis.weightPredictions.exercisePredictions.entries()).find(([exerciseId]) => {
+        const pattern = analysis.exercisePatterns.find(p => p.exerciseId === exerciseId);
+        return pattern?.exerciseName === selectedExercise;
+      });
+      return predictions ? { exerciseId: predictions[0], prediction: predictions[1] } : null;
+    })() : null;
+
+    // Filter exercise patterns
+    const filteredPatterns = analysis.exercisePatterns.filter(
+      pattern => pattern.exerciseName === selectedExercise
+    );
+
+    // Filter recommendations by exercise name
+    const filteredRecommendations = analysis.recommendations.filter(
+      rec => rec.exerciseName === selectedExercise
+    );
+
+    return {
+      predictions: filteredPredictions,
+      patterns: filteredPatterns,
+      recommendations: filteredRecommendations,
+    };
+  }, [analysis, selectedExercise]);
+
+  // Prepare chart data for selected exercise
+  const chartData = useMemo(() => {
+    if (!selectedExercise || sessions.length === 0) return [];
+
+    interface ChartDataPoint {
+      date: string;
+      maxWeight: number;
+      sessionDate: Date;
+    }
+
+    const dataPoints: ChartDataPoint[] = [];
+
+    sessions.forEach((session: WorkoutSession) => {
+      const exercise = session.exerciseLogs.find(
+        (ex: ExerciseLog) => ex.exerciseName.trim() === selectedExercise
+      );
+
+      if (!exercise) return;
+
+      const completedSets = exercise.sets.filter((set: SetLog) => set.completed && set.weight !== undefined);
+      
+      if (completedSets.length > 0) {
+        const maxWeight = Math.max(...completedSets.map((set: SetLog) => set.weight!));
+        const sessionDate = session.completedAt || session.startedAt;
+        
+        dataPoints.push({
+          date: sessionDate.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric' 
+          }),
+          maxWeight,
+          sessionDate,
+        });
+      }
+    });
+
+    return dataPoints.sort((a, b) => 
+      a.sessionDate.getTime() - b.sessionDate.getTime()
+    );
+  }, [selectedExercise, sessions]);
+
   const toggleRecommendation = (id: string) => {
     const newExpanded = new Set(expandedRecommendations);
     if (newExpanded.has(id)) {
@@ -79,49 +181,6 @@ export function AIInsights({ sessions, className }: AIInsightsProps) {
     }
     setExpandedRecommendations(newExpanded);
   };
-
-  if (loading) {
-    return (
-      <Card className={className}>
-        <CardContent className="pt-6">
-          <div className="flex flex-col items-center justify-center py-8 space-y-4">
-            {mlTraining ? (
-              <>
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <div className="text-center">
-                  <p className="text-muted-foreground font-medium">Training ML model...</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    This may take a few seconds on first use
-                  </p>
-                </div>
-              </>
-            ) : (
-              <>
-                <Brain className="h-6 w-6 animate-pulse text-primary" />
-                <p className="text-muted-foreground">Analyzing workouts...</p>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!analysis || analysis.sessionsAnalyzed === 0) {
-    return (
-      <Card className={className}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Brain className="h-5 w-5 text-primary" />
-            AI Workout Insights
-          </CardTitle>
-          <CardDescription>
-            Complete at least 3 workout sessions to receive AI-powered insights and recommendations.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
 
   const getScoreColor = (score: number) => {
     if (score >= 75) return 'text-success';
@@ -166,106 +225,208 @@ export function AIInsights({ sessions, className }: AIInsightsProps) {
     }
   };
 
-  return (
-    <div className={`space-y-6 ${className}`}>
-      {/* Overall Score Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Brain className="h-5 w-5 text-primary" />
-            AI Workout Analysis
-          </CardTitle>
-          <CardDescription>
-            Based on {analysis.sessionsAnalyzed} session{analysis.sessionsAnalyzed !== 1 ? 's' : ''} over the past{' '}
-            {Math.ceil((analysis.timeRange.endDate.getTime() - analysis.timeRange.startDate.getTime()) / (1000 * 60 * 60 * 24))} days
-            {analysis.mlPredictions?.modelTrained && (
-              <span className="ml-2 inline-flex items-center gap-1 text-primary">
-                <Sparkles className="h-3 w-3" />
-                ML Enhanced
-              </span>
-            )}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Overall Score */}
-          <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-            <div className="flex items-center gap-3">
-              {getScoreIcon(analysis.overallScore)}
-              <div>
-                <p className="text-sm text-muted-foreground">Overall Fitness Score</p>
-                <p className={`text-3xl font-bold ${getScoreColor(analysis.overallScore)}`}>
-                  {analysis.overallScore}/100
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Summary */}
-          <div className="p-4 bg-secondary/10 rounded-lg border-l-4 border-l-primary">
-            <p className="text-sm font-medium mb-2">Summary</p>
-            <p className="text-sm text-muted-foreground">{analysis.summary}</p>
-          </div>
-
-          {/* Progress Metrics */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Strength Progress</p>
-              <p className={`text-lg font-bold ${analysis.progressMetrics.strengthProgress >= 0 ? 'text-success' : 'text-destructive'}`}>
-                {analysis.progressMetrics.strengthProgress >= 0 ? '+' : ''}
-                {analysis.progressMetrics.strengthProgress.toFixed(1)}%
-              </p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Volume Progress</p>
-              <p className={`text-lg font-bold ${analysis.progressMetrics.volumeProgress >= 0 ? 'text-success' : 'text-destructive'}`}>
-                {analysis.progressMetrics.volumeProgress >= 0 ? '+' : ''}
-                {analysis.progressMetrics.volumeProgress.toFixed(1)}%
-              </p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Consistency</p>
-              <p className={`text-lg font-bold ${getScoreColor(analysis.progressMetrics.consistencyScore)}`}>
-                {analysis.progressMetrics.consistencyScore}
-              </p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Recovery</p>
-              <p className={`text-lg font-bold ${getScoreColor(analysis.progressMetrics.recoveryScore)}`}>
-                {analysis.progressMetrics.recoveryScore}
-              </p>
-            </div>
+  // Now we can do conditional returns after all hooks are called
+  if (loading) {
+    return (
+      <Card className={className}>
+        <CardContent className="pt-6">
+          <div className="flex flex-col items-center justify-center py-8 space-y-4">
+            <Brain className="h-6 w-6 animate-pulse text-primary" />
+            <p className="text-muted-foreground">Analyzing workouts...</p>
           </div>
         </CardContent>
       </Card>
+    );
+  }
 
-      {/* ML Predictions */}
-      {analysis.mlPredictions && analysis.mlPredictions.exercisePredictions.size > 0 ? (
+  if (!analysis || analysis.sessionsAnalyzed === 0) {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-center gap-2">
+            <Brain className="h-5 w-5 text-primary" />
+            AI Workout Insights
+          </CardTitle>
+          <CardDescription>
+            Complete at least 3 workout sessions to receive AI-powered insights and recommendations.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  return (
+    <div className={`space-y-6 ${className}`}>
+      {/* AI Workout Analysis - Shows ALL workout data (unfiltered) */}
+      {analysis && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              ML Predictions
+            <CardTitle className="flex items-center justify-center gap-2">
+              <Brain className="h-5 w-5 text-primary" />
+              AI Workout Analysis
             </CardTitle>
-            <CardDescription>
-              AI-powered predictions for your next workout sessions
+            <CardDescription className="text-center">
+              Based on {analysis.sessionsAnalyzed} session{analysis.sessionsAnalyzed !== 1 ? 's' : ''} over the past{' '}
+              {Math.ceil((analysis.timeRange.endDate.getTime() - analysis.timeRange.startDate.getTime()) / (1000 * 60 * 60 * 24))} days
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 sm:px-6 space-y-4">
+            {/* Overall Score */}
+            <div className="flex items-center justify-center sm:justify-between p-3 sm:p-4 bg-muted rounded-lg">
+              <div className="flex items-center gap-2 sm:gap-3">
+                {getScoreIcon(analysis.overallScore)}
+                <div>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Overall Fitness Score</p>
+                  <p className={`text-2xl sm:text-3xl font-bold ${getScoreColor(analysis.overallScore)}`}>
+                    {analysis.overallScore}/100
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Summary */}
+            <div className="p-3 sm:p-4 bg-secondary/10 rounded-lg border-l-4 border-l-primary">
+              <p className="text-xs sm:text-sm font-medium mb-2">Summary</p>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{analysis.summary}</p>
+            </div>
+
+            {/* Progress Metrics */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Strength Progress</p>
+                <p className={`text-base sm:text-lg font-bold ${analysis.progressMetrics.strengthProgress >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {analysis.progressMetrics.strengthProgress >= 0 ? '+' : ''}
+                  {analysis.progressMetrics.strengthProgress.toFixed(1)}%
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Volume Progress</p>
+                <p className={`text-base sm:text-lg font-bold ${analysis.progressMetrics.volumeProgress >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {analysis.progressMetrics.volumeProgress >= 0 ? '+' : ''}
+                  {analysis.progressMetrics.volumeProgress.toFixed(1)}%
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Consistency</p>
+                <p className={`text-base sm:text-lg font-bold ${getScoreColor(analysis.progressMetrics.consistencyScore)}`}>
+                  {analysis.progressMetrics.consistencyScore}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Recovery</p>
+                <p className={`text-base sm:text-lg font-bold ${getScoreColor(analysis.progressMetrics.recoveryScore)}`}>
+                  {analysis.progressMetrics.recoveryScore}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Exercise Selection */}
+      {availableExercises.length > 0 && (
+        <Card>
+          <CardContent className="pt-4 sm:pt-6 px-4 sm:px-6">
+            <div className="space-y-2">
+              <label htmlFor="exercise-select-ai" className="text-sm font-medium">
+                Select Exercise to Analyze
+              </label>
+              <div className="relative">
+                <select
+                  id="exercise-select-ai"
+                  value={selectedExercise}
+                  onChange={(e) => setSelectedExercise(e.target.value)}
+                  className="w-full px-3 py-2.5 pr-10 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 appearance-none cursor-pointer touch-manipulation"
+                >
+                  {availableExercises.map(exercise => (
+                    <option key={exercise} value={exercise}>
+                      {exercise}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Exercise Patterns - FOR SELECTED EXERCISE */}
+      {selectedExercise && filteredExerciseData.patterns.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Exercise Patterns
+            </CardTitle>
+            <CardDescription>
+              Performance patterns detected from your training data
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="px-4 sm:px-6">
             <div className="space-y-3">
-              {Array.from(analysis.mlPredictions.exercisePredictions.entries()).map(([exerciseId, prediction]) => {
-                const pattern = analysis.exercisePatterns.find(p => p.exerciseId === exerciseId);
-                const exerciseName = pattern?.exerciseName || 'Exercise';
+              {filteredExerciseData.patterns.map((pattern) => (
+                <div
+                  key={pattern.exerciseId}
+                  className="p-3 sm:p-4 rounded-lg border bg-card"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <h4 className="font-semibold text-sm sm:text-base break-words">{pattern.exerciseName}</h4>
+                        <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
+                          pattern.patternType === 'optimal' || pattern.patternType === 'progression'
+                            ? 'bg-success/20 text-success'
+                            : pattern.patternType === 'plateau'
+                            ? 'bg-accent/20 text-accent'
+                            : pattern.patternType === 'decline'
+                            ? 'bg-destructive/20 text-destructive'
+                            : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {pattern.patternType}
+                        </span>
+                        {pattern.severity === 'high' && (
+                          <span className="text-xs text-destructive whitespace-nowrap">⚠ High Priority</span>
+                        )}
+                      </div>
+                      <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{pattern.description}</p>
+                    </div>
+                    {pattern.trend === 'up' && <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-success flex-shrink-0" />}
+                    {pattern.trend === 'down' && <TrendingDown className="h-4 w-4 sm:h-5 sm:w-5 text-destructive flex-shrink-0" />}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Weight Progression Predictions - FOR SELECTED EXERCISE */}
+      {selectedExercise && filteredExerciseData.predictions && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Progression
+            </CardTitle>
+            <CardDescription>
+              Suggested weights for your next workout based on your training trends
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="px-4 sm:px-6">
+            <div className="space-y-3">
+              {(() => {
+                const { exerciseId, prediction } = filteredExerciseData.predictions;
                 const isExpanded = expandedPredictions.has(exerciseId);
                 
                 return (
                   <div
                     key={exerciseId}
-                    className="p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+                    className="p-3 sm:p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h4 className="font-semibold">{exerciseName}</h4>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-3">
                           <span className={`text-xs px-2 py-0.5 rounded-full ${
                             prediction.confidence >= 0.7
                               ? 'bg-success/20 text-success'
@@ -277,80 +438,60 @@ export function AIInsights({ sessions, className }: AIInsightsProps) {
                           </span>
                         </div>
                         
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-3">
                           <div>
-                            <p className="text-xs text-muted-foreground">Predicted Weight</p>
-                            <p className="text-lg font-bold text-primary">
-                              {prediction.predictedMaxWeight} lbs
+                            <p className="text-xs text-muted-foreground mb-1">Current Weight</p>
+                            <p className="text-base sm:text-lg font-bold text-muted-foreground">
+                              {prediction.currentWeight} lbs
                             </p>
                           </div>
                           <div>
-                            <p className="text-xs text-muted-foreground">Predicted Volume</p>
-                            <p className="text-lg font-bold text-accent">
-                              {prediction.predictedVolume.toLocaleString()} lbs
+                            <p className="text-xs text-muted-foreground mb-1">Suggested Next Weight</p>
+                            <p className="text-base sm:text-lg font-bold text-primary">
+                              {prediction.predictedNextWeight} lbs
                             </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Predicted RPE</p>
-                            <p className="text-lg font-bold text-secondary">
-                              {prediction.predictedRPE}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Progression Ready</p>
-                            <p className={`text-lg font-bold ${prediction.progressionReady ? 'text-success' : 'text-muted-foreground'}`}>
-                              {prediction.progressionReady ? 'Yes' : 'Not yet'}
-                            </p>
+                            {prediction.weightIncrease > 0 && (
+                              <p className="text-xs text-success mt-1">
+                                +{prediction.weightIncrease} lbs increase
+                              </p>
+                            )}
+                            {prediction.weightIncrease < 0 && (
+                              <p className="text-xs text-destructive mt-1">
+                                {prediction.weightIncrease} lbs (deload suggested)
+                              </p>
+                            )}
+                            {prediction.weightIncrease === 0 && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Maintain current weight
+                              </p>
+                            )}
                           </div>
                         </div>
 
-                        {prediction.progressionReady && (
-                          <div className="p-2 bg-success/10 rounded-md mb-2">
+                        {prediction.weightIncrease > 0 && (
+                          <div className="p-2 sm:p-3 bg-success/10 rounded-md mb-2">
                             <p className="text-xs font-medium text-success mb-1">
                               Ready to Progress!
                             </p>
-                            <p className="text-xs text-muted-foreground">
-                              Suggested increase: +{prediction.progressionAmount} lbs
-                            </p>
-                          </div>
-                        )}
-
-                        {prediction.deloadProbability > 0.6 && (
-                          <div className="p-2 bg-destructive/10 rounded-md mb-2">
-                            <p className="text-xs font-medium text-destructive mb-1">
-                              Deload Recommended ({Math.round(prediction.deloadProbability * 100)}% probability)
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Optimal weight: {prediction.optimalWeight} lbs
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              {prediction.reasoning}
                             </p>
                           </div>
                         )}
 
                         {isExpanded && (
-                          <div className="mt-3 pt-3 border-t space-y-2">
-                            <div>
-                              <p className="text-xs font-medium mb-1">Optimal Recommendations:</p>
-                              <ul className="space-y-1">
-                                <li className="text-xs text-muted-foreground">
-                                  • Optimal weight: {prediction.optimalWeight} lbs
-                                </li>
-                                <li className="text-xs text-muted-foreground">
-                                  • Optimal volume: {prediction.optimalVolume.toLocaleString()} lbs
-                                </li>
-                                {prediction.progressionReady && (
-                                  <li className="text-xs text-muted-foreground">
-                                    • Increase weight by {prediction.progressionAmount} lbs
-                                  </li>
-                                )}
-                              </ul>
-                            </div>
+                          <div className="mt-3 pt-3 border-t">
+                            <p className="text-xs font-medium mb-1">Prediction Details:</p>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              {prediction.reasoning}
+                            </p>
                           </div>
                         )}
                       </div>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="flex-shrink-0"
+                        className="flex-shrink-0 min-w-[44px] min-h-[44px] touch-manipulation"
                         onClick={() => {
                           const newExpanded = new Set(expandedPredictions);
                           if (newExpanded.has(exerciseId)) {
@@ -370,107 +511,28 @@ export function AIInsights({ sessions, className }: AIInsightsProps) {
                     </div>
                   </div>
                 );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      ) : analysis.mlPredictions && !analysis.mlPredictions.modelTrained && sessions.length >= 2 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              ML Predictions
-            </CardTitle>
-            <CardDescription>
-              Complete more workouts to enable AI predictions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-centerbg-muted/50 rounded-lg">
-              <p className="text-sm text-muted-foreground mb-1">
-                ML predictions will appear once you have:
-              </p>
-              <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                <li>At least 3 total workout sessions</li>
-                <li>At least 2 sessions with the same exercise</li>
-              </ul>
-              <p className="text-sm text-muted-foreground mt-3">
-                Currently: {sessions.length} session{sessions.length !== 1 ? 's' : ''} recorded
-              </p>
+              })()}
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Exercise Patterns */}
-      {analysis.exercisePatterns.length > 0 && (
+      {/* Recommendations - FOR SELECTED EXERCISE */}
+      {selectedExercise && filteredExerciseData.recommendations.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              Exercise Patterns
-            </CardTitle>
-            <CardDescription>
-              Performance patterns detected across your exercises
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {analysis.exercisePatterns.map((pattern) => (
-                <div
-                  key={pattern.exerciseId}
-                  className="p-4 rounded-lg border bg-card"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-semibold">{pattern.exerciseName}</h4>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          pattern.patternType === 'optimal' || pattern.patternType === 'progression'
-                            ? 'bg-success/20 text-success'
-                            : pattern.patternType === 'plateau'
-                            ? 'bg-accent/20 text-accent'
-                            : pattern.patternType === 'decline'
-                            ? 'bg-destructive/20 text-destructive'
-                            : 'bg-muted text-muted-foreground'
-                        }`}>
-                          {pattern.patternType}
-                        </span>
-                        {pattern.severity === 'high' && (
-                          <span className="text-xs text-destructive">⚠ High Priority</span>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground">{pattern.description}</p>
-                    </div>
-                    {pattern.trend === 'up' && <TrendingUp className="h-5 w-5 text-success flex-shrink-0 ml-2" />}
-                    {pattern.trend === 'down' && <TrendingDown className="h-5 w-5 text-destructive flex-shrink-0 ml-2" />}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Recommendations */}
-      {(analysis.hybridRecommendations?.length || 0) > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center justify-center gap-2">
               <Lightbulb className="h-5 w-5 text-primary" />
               Recommendations
             </CardTitle>
             <CardDescription>
               AI-powered suggestions to optimize your training
-              {analysis.mlPredictions?.modelTrained && (
-                <span className="ml-2 text-xs">(Enhanced with ML predictions)</span>
-              )}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="px-4 sm:px-6 space-y-4">
             {/* High Priority */}
             {(() => {
-              const recs = analysis.hybridRecommendations || analysis.recommendations || [];
+              const recs = filteredExerciseData.recommendations;
               const high = recs.filter(r => r.priority === 'high');
               const medium = recs.filter(r => r.priority === 'medium');
               const low = recs.filter(r => r.priority === 'low');
@@ -479,7 +541,7 @@ export function AIInsights({ sessions, className }: AIInsightsProps) {
                 <>
                   {high.length > 0 && (
                     <div className="space-y-3">
-                      <h3 className="text-sm font-semibold text-destructive">High Priority</h3>
+                      <h3 className="text-xs sm:text-sm font-semibold text-destructive">High Priority</h3>
                       {high.map((rec) => (
                         <RecommendationCard
                           key={rec.id}
@@ -494,7 +556,7 @@ export function AIInsights({ sessions, className }: AIInsightsProps) {
                   )}
                   {medium.length > 0 && (
                     <div className="space-y-3">
-                      <h3 className="text-sm font-semibold text-accent">Medium Priority</h3>
+                      <h3 className="text-xs sm:text-sm font-semibold text-accent">Medium Priority</h3>
                       {medium.map((rec) => (
                         <RecommendationCard
                           key={rec.id}
@@ -509,7 +571,7 @@ export function AIInsights({ sessions, className }: AIInsightsProps) {
                   )}
                   {low.length > 0 && (
                     <div className="space-y-3">
-                      <h3 className="text-sm font-semibold text-primary">Low Priority</h3>
+                      <h3 className="text-xs sm:text-sm font-semibold text-primary">Low Priority</h3>
                       {low.map((rec) => (
                         <RecommendationCard
                           key={rec.id}
@@ -525,6 +587,51 @@ export function AIInsights({ sessions, className }: AIInsightsProps) {
                 </>
               );
             })()}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Chart - FOR SELECTED EXERCISE */}
+      {selectedExercise && chartData.length > 0 && (
+        <Card className="min-w-0">
+          <CardHeader>
+            <CardTitle className="text-center">Max Weight Over Time</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 sm:px-6 space-y-6">
+            <div className="w-full h-[250px] sm:h-[400px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis 
+                    dataKey="date" 
+                    className="text-xs"
+                    tick={{ fill: 'currentColor' }}
+                  />
+                  <YAxis 
+                    label={{ value: 'Weight (lbs)', angle: -90, position: 'insideLeft' }}
+                    className="text-xs"
+                    tick={{ fill: 'currentColor' }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '0.5rem'
+                    }}
+                    labelStyle={{ color: 'hsl(var(--foreground))' }}
+                  />
+                  <Legend />
+                  <Line 
+                    type="monotone" 
+                    dataKey="maxWeight" 
+                    stroke="hsl(var(--primary))" 
+                    strokeWidth={2}
+                    dot={{ fill: 'hsl(var(--primary))', r: 4 }}
+                    name="Max Weight (lbs)"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -550,12 +657,12 @@ function RecommendationCard({
   return (
     <div className={`border-l-4 rounded-lg border bg-card ${getPriorityColor(recommendation.priority)}`}>
       <div
-        className="p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+        className="p-3 sm:p-4 cursor-pointer hover:bg-muted/50 transition-colors touch-manipulation"
         onClick={onToggle}
       >
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3 flex-1">
-            <div className="mt-0.5">
+        <div className="flex items-start justify-between gap-2 sm:gap-4">
+          <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
+            <div className="mt-0.5 flex-shrink-0">
               {getIcon(recommendation.type)}
             </div>
             <div className="flex-1 min-w-0">
@@ -564,14 +671,14 @@ function RecommendationCard({
                   {recommendation.exerciseName}
                 </p>
               )}
-              <h4 className="font-semibold mb-1">{recommendation.title}</h4>
-              <p className="text-sm text-muted-foreground">{recommendation.description}</p>
+              <h4 className="font-semibold mb-1 text-sm sm:text-base break-words">{recommendation.title}</h4>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{recommendation.description}</p>
             </div>
           </div>
           <Button
             variant="ghost"
             size="sm"
-            className="flex-shrink-0"
+            className="flex-shrink-0 min-w-[44px] min-h-[44px] touch-manipulation"
             onClick={(e) => {
               e.stopPropagation();
               onToggle();
@@ -586,13 +693,13 @@ function RecommendationCard({
         </div>
       </div>
       {isExpanded && (
-        <div className="px-4 pb-4 space-y-3 border-t bg-muted/30">
+        <div className="px-3 sm:px-4 pb-3 sm:pb-4 space-y-3 border-t bg-muted/30">
           <div className="pt-3">
-            <p className="text-sm font-medium mb-2">Action Items:</p>
+            <p className="text-xs sm:text-sm font-medium mb-2">Action Items:</p>
             <ul className="space-y-1">
               {recommendation.actionItems.map((item, index) => (
-                <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
-                  <span className="text-primary mt-0.5">•</span>
+                <li key={index} className="text-xs sm:text-sm text-muted-foreground flex items-start gap-2 leading-relaxed">
+                  <span className="text-primary mt-0.5 flex-shrink-0">•</span>
                   <span>{item}</span>
                 </li>
               ))}
@@ -600,7 +707,7 @@ function RecommendationCard({
           </div>
           <div className="pt-2 border-t">
             <p className="text-xs font-medium mb-1">Why this matters:</p>
-            <p className="text-xs text-muted-foreground">{recommendation.reasoning}</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{recommendation.reasoning}</p>
           </div>
         </div>
       )}

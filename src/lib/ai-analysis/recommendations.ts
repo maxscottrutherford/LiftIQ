@@ -65,45 +65,6 @@ function generateRecommendationsForPattern(
 function generatePlateauRecommendations(pattern: ExercisePattern): WorkoutRecommendation[] {
   const recs: WorkoutRecommendation[] = [];
   const lastSession = pattern.lastThreeSessions[pattern.lastThreeSessions.length - 1];
-  const avgWeight = lastSession?.maxWeight || 0;
-  const deloadWeight = Math.round(avgWeight * 0.9); // 10% deload
-
-  // High priority: Deload recommendation
-  recs.push({
-    id: `deload-${pattern.exerciseId}`,
-    type: 'deload',
-    priority: pattern.severity === 'high' ? 'high' : 'medium',
-    exerciseName: pattern.exerciseName,
-    title: `Deload ${pattern.exerciseName}`,
-    description: `Reduce weight to ${deloadWeight} lbs (10% decrease) and focus on perfect form and higher reps (8-12 range) for 1-2 weeks.`,
-    actionItems: [
-      `Reduce working weight to ${deloadWeight} lbs`,
-      'Increase reps to 8-12 range',
-      'Focus on perfect form and controlled tempo',
-      'Maintain for 1-2 weeks before progressing',
-    ],
-    reasoning: `Plateauing for ${pattern.dataPoints} sessions suggests the body needs a deload to supercompensate and break through the plateau.`,
-    relatedPatterns: [pattern.patternType],
-  });
-
-  // Isometric recommendation
-  recs.push({
-    id: `isometric-${pattern.exerciseId}`,
-    type: 'isometric',
-    priority: 'medium',
-    exerciseName: pattern.exerciseName,
-    title: `Add Isometric Holds to ${pattern.exerciseName}`,
-    description: `Incorporate isometric holds (3-5 sets of 10-30 second holds at 80-90% of max) to build strength at sticking points.`,
-    actionItems: [
-      'Add 2-3 isometric holds per session',
-      'Hold at the weakest point of the movement',
-      'Hold for 10-30 seconds',
-      'Use 80-90% of your current max weight',
-      'Rest 2-3 minutes between holds',
-    ],
-    reasoning: 'Isometric training helps build strength at specific joint angles and can break through plateaus by addressing weak points.',
-    relatedPatterns: [pattern.patternType],
-  });
 
   // Rep range change recommendation
   if (lastSession?.averageReps && lastSession.averageReps < 6) {

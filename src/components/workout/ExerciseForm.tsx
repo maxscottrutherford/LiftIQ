@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ChevronDown } from 'lucide-react';
 import { ExerciseFormData } from '@/lib/types';
 import { validateExerciseForm, formatRestTime } from '@/lib/workout-utils';
 
@@ -173,19 +173,19 @@ export function ExerciseForm({ onSubmit, onCancel, initialData, isEditing = fals
             <Label htmlFor="intensityMetricType">Intensity Metric</Label>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Select
-                  value={formData.intensityMetricType || 'none'}
-                  onValueChange={(value) => updateFormData('intensityMetricType', value === 'none' ? '' : value)}
-                >
-                  <SelectTrigger id="intensityMetricType" className="w-full">
-                    <SelectValue placeholder="Select metric" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    <SelectItem value="rpe">RPE (Rate of Perceived Exertion)</SelectItem>
-                    <SelectItem value="rir">RIR (Reps in Reserve)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="relative">
+                  <select
+                    id="intensityMetricType"
+                    value={formData.intensityMetricType || 'none'}
+                    onChange={(e) => updateFormData('intensityMetricType', e.target.value === 'none' ? '' : e.target.value)}
+                    className="w-full px-3 py-2 pr-10 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 appearance-none cursor-pointer"
+                  >
+                    <option value="none">None</option>
+                    <option value="rpe">RPE (Rate of Perceived Exertion)</option>
+                    <option value="rir">RIR (Reps in Reserve)</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                </div>
               </div>
               <div>
                 <Input

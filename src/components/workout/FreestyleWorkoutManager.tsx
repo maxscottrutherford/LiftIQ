@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { useAuth } from '@/lib/auth-context';
 import { ArrowLeft, Plus, Save, Trash2, CheckCircle, Edit2, ChevronDown, ChevronUp, Play } from 'lucide-react';
@@ -486,23 +485,23 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
               <Label htmlFor="exerciseName">Exercise Name *</Label>
               {getExistingExerciseNames().length > 0 ? (
                 <div className="space-y-2">
-                  <Select
-                    value={currentExerciseName && findCaseInsensitiveMatch(currentExerciseName) ? findCaseInsensitiveMatch(currentExerciseName)! : ''}
-                    onValueChange={(value) => {
-                      setCurrentExerciseName(value);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select exercise or type new name below" />
-                    </SelectTrigger>
-                    <SelectContent>
+                  <div className="relative">
+                    <select
+                      value={currentExerciseName && findCaseInsensitiveMatch(currentExerciseName) ? findCaseInsensitiveMatch(currentExerciseName)! : ''}
+                      onChange={(e) => {
+                        setCurrentExerciseName(e.target.value);
+                      }}
+                      className="w-full px-3 py-2 pr-10 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 appearance-none cursor-pointer"
+                    >
+                      <option value="" disabled>Select exercise or type new name below</option>
                       {getExistingExerciseNames().map((name) => (
-                        <SelectItem key={name} value={name}>
+                        <option key={name} value={name}>
                           {name}
-                        </SelectItem>
+                        </option>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  </div>
                   <Input
                     id="exerciseName"
                     value={currentExerciseName}
@@ -535,18 +534,18 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="setType">Set Type *</Label>
-                <Select
-                  value={currentSetType}
-                  onValueChange={(value) => setCurrentSetType(value as 'warmup' | 'working')}
-                >
-                  <SelectTrigger id="setType">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="warmup">Warmup</SelectItem>
-                    <SelectItem value="working">Working</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="relative">
+                  <select
+                    id="setType"
+                    value={currentSetType}
+                    onChange={(e) => setCurrentSetType(e.target.value as 'warmup' | 'working')}
+                    className="w-full px-3 py-2 pr-10 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 appearance-none cursor-pointer"
+                  >
+                    <option value="warmup">Warmup</option>
+                    <option value="working">Working</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="weight">Weight (lbs)</Label>
