@@ -11,6 +11,7 @@ import { parseAIWorkoutPlan } from '@/lib/ai-coaching/workout-plan-parser';
 import { generateWorkoutPlan } from '@/lib/ai-coaching/openai-service';
 import { saveWorkoutSplit } from '@/lib/supabase/workout-service';
 import { WorkoutPlanPreview } from './WorkoutPlanPreview';
+import { AIWorkoutLoadingState } from './AIWorkoutLoadingState';
 
 interface Message {
   id: string;
@@ -86,6 +87,10 @@ export function WorkoutPlanningAssistant({ isOpen, onClose }: WorkoutPlanningAss
     setInput('');
     setIsLoading(true);
 
+    // Minimum loading duration to ensure animation completes (6 steps × ~2s + pauses = ~13s)
+    const minLoadingDuration = 13000;
+    const startTime = Date.now();
+
     try {
       // Call OpenAI API to generate workout plan
       const aiResponse = await generateWorkoutPlan({
@@ -110,9 +115,21 @@ export function WorkoutPlanningAssistant({ isOpen, onClose }: WorkoutPlanningAss
         workoutPlan: parsedPlan,
       };
 
+      // Wait for minimum duration before showing response
+      const elapsedTime = Date.now() - startTime;
+      const remainingTime = Math.max(0, minLoadingDuration - elapsedTime);
+      
+      await new Promise(resolve => setTimeout(resolve, remainingTime));
+      
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error('Error generating workout plan:', error);
+      
+      // Wait for minimum duration even on error
+      const elapsedTime = Date.now() - startTime;
+      const remainingTime = Math.max(0, minLoadingDuration - elapsedTime);
+      
+      await new Promise(resolve => setTimeout(resolve, remainingTime));
       
       // Show error message to user
       const errorMessage: Message = {
@@ -254,16 +271,7 @@ export function WorkoutPlanningAssistant({ isOpen, onClose }: WorkoutPlanningAss
           ))}
 
           {/* Loading Indicator */}
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="bg-muted rounded-lg p-4">
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  <span className="text-sm text-muted-foreground">Thinking...</span>
-                </div>
-              </div>
-            </div>
-          )}
+          {isLoading && <AIWorkoutLoadingState />}
 
           <div ref={messagesEndRef} />
         </CardContent>
