@@ -1,4 +1,4 @@
-import { Exercise, ExerciseFormData, WorkoutDay, WorkoutDayFormData, WorkoutSplit, WorkoutSplitFormData, WorkoutSession, ExerciseLog, SetLog, SetLogFormData, ExerciseLogFormData } from './types';
+import { Exercise, ExerciseFormData, WorkoutDay, WorkoutDayFormData, WorkoutSplit, WorkoutSplitFormData, WorkoutSession, ExerciseLog, SetLog, SetLogFormData, ExerciseLogFormData } from '@/lib/types';
 
 // Generate unique IDs
 export const generateId = (): string => {
