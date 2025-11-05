@@ -85,9 +85,6 @@ export function WorkoutSplitCard({ split, onEdit, onDelete, onStart }: WorkoutSp
                         {day.exercises.length} exercise{day.exercises.length !== 1 ? 's' : ''}
                       </span>
                     )}
-                    {isRestDay && (
-                      <span className="text-xs text-muted-foreground mt-0.5">Rest Day</span>
-                    )}
                   </div>
                   {!isRestDay && (
                     <Button
