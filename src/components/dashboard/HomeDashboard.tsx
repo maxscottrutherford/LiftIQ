@@ -1,13 +1,15 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { CongratulationsModal } from '@/components/common/CongratulationsModal';
 import { NavigationCard } from './shared/NavigationCard';
+import { WorkoutPlanningAssistant } from './shared/WorkoutPlanningAssistant';
 import { useAuth } from '@/lib/auth-context';
 import { useWorkoutCompletion } from '@/hooks/useWorkoutCompletion';
-import { Dumbbell, Calendar, BarChart3, History, LogOut } from 'lucide-react';
+import { Dumbbell, Calendar, BarChart3, History, LogOut, Sparkles } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 interface NavigationItem {
@@ -37,6 +39,14 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
     iconColor: 'text-accent',
   },
   {
+    icon: Sparkles,
+    title: 'AI Workout Planner',
+    description: 'Get personalized workout plans',
+    route: '#ai-planner',
+    iconBgColor: 'bg-accent/10',
+    iconColor: 'text-accent',
+  },
+  {
     icon: History,
     title: 'Past Lifts',
     description: 'View your workout history',
@@ -58,10 +68,19 @@ export function HomeDashboard() {
   const router = useRouter();
   const { signOut } = useAuth();
   const { showCongratulations, setShowCongratulations } = useWorkoutCompletion();
+  const [showAssistant, setShowAssistant] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
     router.push('/');
+  };
+
+  const handleNavigationClick = (route: string) => {
+    if (route === '#ai-planner') {
+      setShowAssistant(true);
+    } else {
+      router.push(route);
+    }
   };
 
   return (
@@ -88,7 +107,7 @@ export function HomeDashboard() {
             description={item.description}
             iconBgColor={item.iconBgColor}
             iconColor={item.iconColor}
-            onClick={() => router.push(item.route)}
+            onClick={() => handleNavigationClick(item.route)}
           />
         ))}
       </div>
@@ -111,6 +130,12 @@ export function HomeDashboard() {
       <CongratulationsModal
         isOpen={showCongratulations}
         onClose={() => setShowCongratulations(false)}
+      />
+
+      {/* AI Workout Planning Assistant */}
+      <WorkoutPlanningAssistant
+        isOpen={showAssistant}
+        onClose={() => setShowAssistant(false)}
       />
     </div>
   );

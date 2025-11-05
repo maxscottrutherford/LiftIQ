@@ -19,31 +19,11 @@ export function WorkoutSplitCard({ split, onEdit, onDelete, onStart }: WorkoutSp
   return (
     <Card className="w-full hover:shadow-lg transition-shadow">
       <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <CardTitle className="text-xl">{split.name}</CardTitle>
-            {split.description && (
-              <p className="text-sm text-muted-foreground">{split.description}</p>
-            )}
-          </div>
-          <div className="flex space-x-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onEdit(split)}
-              className="h-8 w-8 p-0"
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onDelete(split.id)}
-              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
+        <div className="space-y-1">
+          <CardTitle className="text-xl">{split.name}</CardTitle>
+          {split.description && (
+            <p className="text-sm text-muted-foreground">{split.description}</p>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

@@ -15,4 +15,6 @@ export * from './ExercisePatternCard';
 export * from './WeightPredictionCard';
 export * from './ExerciseSelector';
 export * from './RecommendationsList';
+export * from './WorkoutPlanningAssistant';
+export * from './WorkoutPlanPreview';
 
