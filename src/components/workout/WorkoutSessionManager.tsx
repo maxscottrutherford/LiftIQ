@@ -94,6 +94,9 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
   // Save or update session in database when first set is completed or when session changes
   useEffect(() => {
     if (!session || !user?.id || isSaving) return;
+    
+    // Don't save if session is already completed (handleCompleteSession handles that)
+    if (session.status === 'completed') return;
 
     // Check if any set has been completed
     const hasCompletedSets = session.exerciseLogs.some(exercise => 
@@ -133,7 +136,7 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
     };
 
     saveOrUpdateSession();
-  }, [session, sessionNotes, sessionId, user?.id, isSaving]);
+  }, [session, sessionNotes, sessionId, user?.id]); // Removed isSaving from dependencies to prevent loop
 
   // Update current time for duration display and rest timer
   useEffect(() => {
@@ -289,36 +292,44 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
   };
 
   const handleCompleteSession = async () => {
-    const completedSession = {
-      ...completeWorkoutSession(session),
-      notes: sessionNotes.trim() || undefined
-    };
+    // Prevent duplicate saves
+    if (isSaving) return;
+    
+    setIsSaving(true);
+    try {
+      const completedSession = {
+        ...completeWorkoutSession(session),
+        notes: sessionNotes.trim() || undefined
+      };
 
-    // Update session in database to completed status
-    if (sessionId) {
-      const updated = await updateWorkoutSession(completedSession);
-      if (updated) {
+      // Update session in database to completed status
+      if (sessionId) {
+        const updated = await updateWorkoutSession(completedSession);
+        if (updated) {
+          // Set flag for celebration on home page
+          try {
+            sessionStorage.setItem('workout_completed', 'true');
+          } catch (error) {
+            console.error('Error setting workout completion flag:', error);
+          }
+          onComplete(updated);
+          return;
+        }
+      }
+
+      // If update failed or no sessionId, try saving as new completed session
+      const saved = await saveWorkoutSession(completedSession);
+      if (saved) {
         // Set flag for celebration on home page
         try {
           sessionStorage.setItem('workout_completed', 'true');
         } catch (error) {
           console.error('Error setting workout completion flag:', error);
         }
-        onComplete(updated);
-        return;
+        onComplete(saved);
       }
-    }
-
-    // If update failed or no sessionId, try saving as new completed session
-    const saved = await saveWorkoutSession(completedSession);
-    if (saved) {
-      // Set flag for celebration on home page
-      try {
-        sessionStorage.setItem('workout_completed', 'true');
-      } catch (error) {
-        console.error('Error setting workout completion flag:', error);
-      }
-      onComplete(saved);
+    } finally {
+      setIsSaving(false);
     }
   };
 

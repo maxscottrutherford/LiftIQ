@@ -212,7 +212,6 @@ function WorkoutSessionCard({ session, onView, onDelete }: WorkoutSessionCardPro
   const totalSets = session.exerciseLogs.reduce((total, exercise) => 
     total + exercise.sets.length, 0
   );
-  const progressPercentage = totalSets > 0 ? Math.round((completedSets / totalSets) * 100) : 0;
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -227,10 +226,17 @@ function WorkoutSessionCard({ session, onView, onDelete }: WorkoutSessionCardPro
         <div className="space-y-3">
           {/* Header with title and action buttons */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <h3 className="text-lg font-semibold">{session.dayName}</h3>
-              <span className="text-sm text-muted-foreground">•</span>
-              <span className="text-sm text-muted-foreground">{session.splitName}</span>
+            <div className="flex-1">
+              {/* Workout Day on its own horizontal row */}
+              <div className="flex items-center">
+                <h3 className="text-lg font-semibold">{session.dayName}</h3>
+              </div>
+              {/* Split name below, if it exists */}
+              {session.splitName && (
+                <div className="mt-1">
+                  <span className="text-sm text-muted-foreground">{session.splitName}</span>
+                </div>
+              )}
             </div>
             
             <div className="flex space-x-2">
@@ -257,41 +263,50 @@ function WorkoutSessionCard({ session, onView, onDelete }: WorkoutSessionCardPro
           </div>
           
           {/* Stats */}
-          <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-            <div className="flex items-center space-x-1">
+          <div className="space-y-2">
+            {/* Date on its own row */}
+            <div className="flex items-center space-x-1 text-sm text-muted-foreground">
               <Calendar className="h-4 w-4" />
               <span>{new Date(session.completedAt || session.startedAt).toLocaleDateString()}</span>
             </div>
-            <div className="flex items-center space-x-1">
-              <Clock className="h-4 w-4" />
-              <span>{formatSessionDuration(session.totalDuration || 0)}</span>
+            {/* Workout time and sets completed on second row */}
+            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+              <div className="flex items-center space-x-1">
+                <Clock className="h-4 w-4" />
+                <span>{formatSessionDuration(session.totalDuration || 0)}</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <CheckCircle2 className="h-4 w-4" />
+                <span>{completedSets}/{totalSets} sets</span>
+              </div>
             </div>
-            <div className="flex items-center space-x-1">
-              <CheckCircle2 className="h-4 w-4" />
-              <span>{completedSets}/{totalSets} sets</span>
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          <div className="w-full bg-muted rounded-full h-2">
-            <div 
-              className={`h-2 rounded-full transition-all duration-300 ${
-                session.status === 'completed' ? 'bg-success' : 'bg-primary'
-              }`}
-              style={{ width: `${progressPercentage}%` }}
-            />
           </div>
 
           {/* Exercise Summary */}
-          <div className="flex flex-wrap gap-2">
-            {session.exerciseLogs.map((exercise) => (
-              <div
-                key={exercise.id}
-                className="px-2 py-1 bg-muted rounded-full text-xs"
-              >
-                {exercise.exerciseName} ({exercise.sets.filter(set => set.completed).length}/{exercise.sets.length})
-              </div>
-            ))}
+          <div className="pt-2 border-t border-border/50">
+            <div className="flex flex-wrap gap-2">
+              {session.exerciseLogs.map((exercise) => {
+                const completedSets = exercise.sets.filter(set => set.completed).length;
+                const totalSets = exercise.sets.length;
+                const isFullyCompleted = completedSets === totalSets && totalSets > 0;
+                
+                return (
+                  <div
+                    key={exercise.id}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                      isFullyCompleted
+                        ? 'bg-primary/10 text-primary border border-primary/20'
+                        : 'bg-muted text-muted-foreground border border-border/50'
+                    }`}
+                  >
+                    <span className="font-semibold">{exercise.exerciseName}</span>
+                    <span className="ml-1.5 opacity-75">
+                      ({completedSets}/{totalSets})
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </CardContent>

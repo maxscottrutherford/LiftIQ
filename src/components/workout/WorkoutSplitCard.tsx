@@ -76,15 +76,17 @@ export function WorkoutSplitCard({ split, onEdit, onDelete, onStart }: WorkoutSp
                     isRestDay ? 'bg-muted/50 border border-muted' : 'bg-muted'
                   }`}
                 >
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-col">
                     <span className={`font-medium text-sm ${isRestDay ? 'text-muted-foreground' : ''}`}>
                       {day.name}
                     </span>
                     {!isRestDay && (
-                      <span className="text-xs text-muted-foreground">({day.exercises.length} exercises)</span>
+                      <span className="text-xs text-muted-foreground mt-0.5">
+                        {day.exercises.length} exercise{day.exercises.length !== 1 ? 's' : ''}
+                      </span>
                     )}
                     {isRestDay && (
-                      <span className="text-xs text-muted-foreground">(Rest Day)</span>
+                      <span className="text-xs text-muted-foreground mt-0.5">Rest Day</span>
                     )}
                   </div>
                   {!isRestDay && (

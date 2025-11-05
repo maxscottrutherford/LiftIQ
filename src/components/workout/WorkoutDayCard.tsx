@@ -223,10 +223,23 @@ export function WorkoutDayCard({ workoutDay, onUpdate, onDelete, showActions = t
           <p className="text-sm text-muted-foreground">
             Take a break and let your muscles recover
           </p>
+        ) : workoutDay.exercises.length > 0 ? (
+          <div className="flex flex-wrap gap-2 pt-2">
+            {workoutDay.exercises.map((exercise) => (
+              <div
+                key={exercise.id}
+                className="px-3 py-1.5 rounded-md text-xs font-medium bg-muted text-muted-foreground border border-border/50"
+              >
+                <span className="font-semibold">{exercise.name}</span>
+              </div>
+            ))}
+          </div>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            {workoutDay.exercises.length} exercise{workoutDay.exercises.length !== 1 ? 's' : ''}
-          </p>
+          <div className="flex flex-wrap gap-2 pt-2">
+            <div className="px-3 py-1.5 rounded-md text-xs font-medium bg-muted text-muted-foreground border border-border/50">
+              <span className="font-semibold">No exercises added yet</span>
+            </div>
+          </div>
         )}
       </CardHeader>
       <CardContent className="space-y-4">

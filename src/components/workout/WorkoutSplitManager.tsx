@@ -141,26 +141,29 @@ export function WorkoutSplitManager({ onSave, onCancel, initialSplit }: WorkoutS
 
       {/* Workout Days */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        {/* Workout Days Heading */}
+        <div className="flex justify-center">
           <h2 className="text-2xl font-semibold">Workout Days</h2>
-          <div className="flex space-x-2">
-            <Button
-              onClick={handleAddRestDay}
-              variant="outline"
-              className="flex items-center space-x-2"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Rest Day</span>
-            </Button>
-            <Button
-              onClick={() => setIsAddingDay(true)}
-              disabled={isAddingDay}
-              className="flex items-center space-x-2"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Add Day</span>
-            </Button>
-          </div>
+        </div>
+        
+        {/* Action Buttons - Centered */}
+        <div className="flex justify-center space-x-2">
+          <Button
+            onClick={handleAddRestDay}
+            variant="outline"
+            className="flex items-center space-x-2"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Rest Day</span>
+          </Button>
+          <Button
+            onClick={() => setIsAddingDay(true)}
+            disabled={isAddingDay}
+            className="flex items-center space-x-2"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add Day</span>
+          </Button>
         </div>
 
         {/* Add New Day Form */}

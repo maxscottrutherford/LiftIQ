@@ -273,6 +273,12 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
       setIsSaving(true);
       try {
         const sessionToSave = convertToWorkoutSession();
+        
+        // Don't save if session is already completed (handleComplete handles that)
+        if (sessionToSave.status === 'completed') {
+          setIsSaving(false);
+          return;
+        }
 
         if (sessionId) {
           // Update existing session
@@ -295,23 +301,39 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
     };
 
     saveOrUpdateSession();
-  }, [sets, workoutName, workoutNotes, startedAt, sessionId, user?.id, isSaving, isLoading, convertToWorkoutSession]);
+  }, [sets, workoutName, workoutNotes, startedAt, sessionId, user?.id, isLoading, convertToWorkoutSession]); // Removed isSaving from dependencies to prevent loop
 
   const handleComplete = async () => {
-    if (!workoutName.trim() || sets.length === 0) return;
+    if (!workoutName.trim() || sets.length === 0 || isSaving) return;
     
-    const sessionToComplete = convertToWorkoutSession();
-    const completedSession: WorkoutSession = {
-      ...sessionToComplete,
-      status: 'completed',
-      completedAt: new Date(),
-      totalDuration: Math.round((new Date().getTime() - startedAt.getTime()) / 60000),
-    };
+    setIsSaving(true);
+    try {
+      const sessionToComplete = convertToWorkoutSession();
+      const completedSession: WorkoutSession = {
+        ...sessionToComplete,
+        status: 'completed',
+        completedAt: new Date(),
+        totalDuration: Math.round((new Date().getTime() - startedAt.getTime()) / 60000),
+      };
 
-    // Update session in database to completed status
-    if (sessionId) {
-      const updated = await updateWorkoutSession(completedSession);
-      if (updated) {
+      // Update session in database to completed status
+      if (sessionId) {
+        const updated = await updateWorkoutSession(completedSession);
+        if (updated) {
+          // Set flag for celebration on home page
+          try {
+            sessionStorage.setItem('workout_completed', 'true');
+          } catch (error) {
+            console.error('Error setting workout completion flag:', error);
+          }
+          onComplete(workoutName.trim(), sets, workoutNotes.trim() || undefined, startedAt);
+          return;
+        }
+      }
+
+      // If update failed or no sessionId, try saving as new completed session
+      const saved = await saveWorkoutSession(completedSession);
+      if (saved) {
         // Set flag for celebration on home page
         try {
           sessionStorage.setItem('workout_completed', 'true');
@@ -319,20 +341,9 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
           console.error('Error setting workout completion flag:', error);
         }
         onComplete(workoutName.trim(), sets, workoutNotes.trim() || undefined, startedAt);
-        return;
       }
-    }
-
-    // If update failed or no sessionId, try saving as new completed session
-    const saved = await saveWorkoutSession(completedSession);
-    if (saved) {
-      // Set flag for celebration on home page
-      try {
-        sessionStorage.setItem('workout_completed', 'true');
-      } catch (error) {
-        console.error('Error setting workout completion flag:', error);
-      }
-      onComplete(workoutName.trim(), sets, workoutNotes.trim() || undefined, startedAt);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -552,6 +563,7 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
                 <Input
                   id="weight"
                   type="number"
+                  step="0.5"
                   value={currentWeight}
                   onChange={(e) => setCurrentWeight(e.target.value)}
                   placeholder="Optional"
