@@ -3,7 +3,7 @@
 import { WorkoutSession } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { formatSessionDuration, formatRestTime } from '@/lib/workout-utils';
+import { formatSessionDuration, formatRestTime } from '@/lib/workout/utils';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { 
   ArrowLeft, 

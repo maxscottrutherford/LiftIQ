@@ -330,3 +330,96 @@ export const validateSetLogForm = (formData: SetLogFormData): string[] => {
   
   return errors;
 };
+
+// Freestyle Workout Utilities
+
+interface FreestyleSet {
+  id?: string;
+  exerciseName: string;
+  setType: 'warmup' | 'working';
+  weight?: number;
+  reps: number;
+  rpe?: number;
+  rir?: number;
+  notes?: string;
+}
+
+/**
+ * Converts freestyle workout sets to a WorkoutSession
+ */
+export const convertFreestyleToWorkoutSession = (
+  workoutName: string,
+  sets: FreestyleSet[],
+  notes?: string,
+  startedAt?: Date
+): WorkoutSession => {
+  // Group sets by exercise name to create ExerciseLog objects
+  const exerciseGroups = new Map<string, FreestyleSet[]>();
+  
+  sets.forEach(set => {
+    const exerciseName = set.exerciseName;
+    if (!exerciseGroups.has(exerciseName)) {
+      exerciseGroups.set(exerciseName, []);
+    }
+    exerciseGroups.get(exerciseName)!.push(set);
+  });
+
+  // Convert grouped sets to ExerciseLog format
+  // Create a map to track original insertion order
+  const setOrderMap = new Map<string, number>();
+  sets.forEach((set, index) => {
+    setOrderMap.set(set.id || `set-${index}`, index);
+  });
+
+  const exerciseLogs: ExerciseLog[] = Array.from(exerciseGroups.entries()).map(([exerciseName, exerciseSets]) => {
+    // Sort sets by original insertion order
+    const sortedSets = exerciseSets.sort((a, b) => {
+      const orderA = setOrderMap.get(a.id || '') ?? 0;
+      const orderB = setOrderMap.get(b.id || '') ?? 0;
+      return orderA - orderB;
+    });
+
+    // Convert FreestyleSet to SetLog format
+    const setLogs: SetLog[] = sortedSets.map((set, index) => ({
+      id: set.id || generateId(),
+      setNumber: index + 1,
+      type: set.setType,
+      weight: set.weight,
+      reps: set.reps,
+      rpe: set.rpe,
+      rir: set.rir,
+      completed: true, // All sets in freestyle workout are completed
+      completedAt: new Date(),
+    }));
+
+    return {
+      id: generateId(),
+      exerciseId: generateId(), // Generate a placeholder exercise ID
+      exerciseName,
+      sets: setLogs,
+      completedAt: new Date(),
+      notes: exerciseSets.find(s => s.notes)?.notes, // Use first set's notes if available
+    };
+  });
+
+  // Calculate duration if we have start time
+  const duration = startedAt 
+    ? Math.round((new Date().getTime() - startedAt.getTime()) / 60000) // Convert to minutes
+    : undefined;
+
+  // Create WorkoutSession object
+  // For freestyle workouts, we'll use placeholder values for split/day since they don't belong to a split
+  return {
+    id: generateId(),
+    splitId: 'freestyle',
+    splitName: 'Freestyle Workout',
+    dayId: 'freestyle',
+    dayName: workoutName,
+    startedAt: startedAt || new Date(),
+    completedAt: new Date(),
+    status: 'completed',
+    exerciseLogs,
+    totalDuration: duration,
+    notes,
+  };
+}

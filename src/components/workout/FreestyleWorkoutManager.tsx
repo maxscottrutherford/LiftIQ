@@ -11,7 +11,7 @@ import { useAuth } from '@/lib/auth-context';
 import { ArrowLeft, Plus, Save, Trash2, CheckCircle, Edit2, ChevronDown, ChevronUp, Play } from 'lucide-react';
 import { saveWorkoutSession, updateWorkoutSession, getActiveWorkoutSessions } from '@/lib/supabase/workout-service';
 import { WorkoutSession, ExerciseLog, SetLog } from '@/lib/types';
-import { generateId } from '@/lib/workout-utils';
+import { generateId } from '@/lib/workout/utils';
 
 interface FreestyleSet {
   id: string;

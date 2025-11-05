@@ -1,33 +1,68 @@
 'use client';
-//for pushing back to prev branch
-import { useState, useEffect } from 'react';
+
 import { useRouter } from 'next/navigation';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { CongratulationsModal } from '@/components/common/CongratulationsModal';
+import { NavigationCard } from './shared/NavigationCard';
 import { useAuth } from '@/lib/auth-context';
+import { useWorkoutCompletion } from '@/hooks/useWorkoutCompletion';
 import { Dumbbell, Calendar, BarChart3, History, LogOut } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+
+interface NavigationItem {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  route: string;
+  iconBgColor: string;
+  iconColor?: string;
+}
+
+const NAVIGATION_ITEMS: NavigationItem[] = [
+  {
+    icon: Dumbbell,
+    title: 'Log a Workout',
+    description: 'Record your workout as you go',
+    route: '/dashboard?view=freestyle',
+    iconBgColor: 'bg-primary/10',
+    iconColor: 'text-primary',
+  },
+  {
+    icon: Calendar,
+    title: 'Workout Splits',
+    description: 'Create and manage your workout programs',
+    route: '/dashboard?view=splits',
+    iconBgColor: 'bg-accent/10',
+    iconColor: 'text-accent',
+  },
+  {
+    icon: History,
+    title: 'Past Lifts',
+    description: 'View your workout history',
+    route: '/dashboard?view=history',
+    iconBgColor: 'bg-secondary/10',
+    iconColor: 'text-foreground dark:text-white',
+  },
+  {
+    icon: BarChart3,
+    title: 'Statistics',
+    description: 'Analyze your progress and gains',
+    route: '/dashboard?view=statistics',
+    iconBgColor: 'bg-primary/10',
+    iconColor: 'text-primary',
+  },
+];
 
 export function HomeDashboard() {
   const router = useRouter();
   const { signOut } = useAuth();
-  const [showCongratulations, setShowCongratulations] = useState(false);
+  const { showCongratulations, setShowCongratulations } = useWorkoutCompletion();
 
-  // Check if user just completed a workout
-  useEffect(() => {
-    try {
-      const workoutCompleted = sessionStorage.getItem('workout_completed');
-      if (workoutCompleted === 'true') {
-        // Clear the flag
-        sessionStorage.removeItem('workout_completed');
-        // Show the congratulations modal
-        setShowCongratulations(true);
-      }
-    } catch (error) {
-      console.error('Error checking workout completion:', error);
-    }
-  }, []);
+  const handleSignOut = async () => {
+    await signOut();
+    router.push('/');
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 py-2">
@@ -45,89 +80,17 @@ export function HomeDashboard() {
 
       {/* Main Action Buttons */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-        {/* Log a Workout */}
-        <Card className="cursor-pointer border-2 hover:bg-muted/50 transition-colors">
-          <CardContent className="pt-4 md:pt-6">
-            <Button
-              variant="ghost"
-              className="w-full h-full p-4 md:p-8 flex flex-col items-center justify-center space-y-2 md:space-y-4 hover:bg-transparent hover:text-foreground"
-              onClick={() => router.push('/dashboard?view=freestyle')}
-            >
-              <div className="p-2 md:p-4 rounded-full bg-primary/10">
-                <Dumbbell className="h-8 w-8 md:h-12 md:w-12 text-primary" />
-              </div>
-              <div className="text-center">
-                <h2 className="text-xl md:text-2xl font-semibold mb-1 md:mb-2">Log a Workout</h2>
-                <p className="text-xs md:text-sm text-muted-foreground">
-                  Record your workout as you go
-                </p>
-              </div>
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Workout Splits */}
-        <Card className="cursor-pointer border-2 hover:bg-muted/50 transition-colors">
-          <CardContent className="pt-4 md:pt-6">
-            <Button
-              variant="ghost"
-              className="w-full h-full p-4 md:p-8 flex flex-col items-center justify-center space-y-2 md:space-y-4 hover:bg-transparent hover:text-foreground"
-              onClick={() => router.push('/dashboard?view=splits')}
-            >
-              <div className="p-2 md:p-4 rounded-full bg-accent/10">
-                <Calendar className="h-8 w-8 md:h-12 md:w-12 text-accent" />
-              </div>
-              <div className="text-center">
-                <h2 className="text-xl md:text-2xl font-semibold mb-1 md:mb-2">Workout Splits</h2>
-                <p className="text-xs md:text-sm text-muted-foreground">
-                  Create and manage your workout programs
-                </p>
-              </div>
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Past Lifts */}
-        <Card className="cursor-pointer border-2 hover:bg-muted/50 transition-colors">
-          <CardContent className="pt-4 md:pt-6">
-            <Button
-              variant="ghost"
-              className="w-full h-full p-4 md:p-8 flex flex-col items-center justify-center space-y-2 md:space-y-4 hover:bg-transparent hover:text-foreground"
-              onClick={() => router.push('/dashboard?view=history')}
-            >
-              <div className="p-2 md:p-4 rounded-full bg-secondary/10">
-                <History className="h-8 w-8 md:h-12 md:w-12 text-foreground dark:text-white" />
-              </div>
-              <div className="text-center">
-                <h2 className="text-xl md:text-2xl font-semibold mb-1 md:mb-2">Past Lifts</h2>
-                <p className="text-xs md:text-sm text-muted-foreground">
-                  View your workout history
-                </p>
-              </div>
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Statistics */}
-        <Card className="cursor-pointer border-2 hover:bg-muted/50 transition-colors">
-          <CardContent className="pt-4 md:pt-6">
-            <Button
-              variant="ghost"
-              className="w-full h-full p-4 md:p-8 flex flex-col items-center justify-center space-y-2 md:space-y-4 hover:bg-transparent hover:text-foreground"
-              onClick={() => router.push('/dashboard?view=statistics')}
-            >
-              <div className="p-2 md:p-4 rounded-full bg-primary/10">
-                <BarChart3 className="h-8 w-8 md:h-12 md:w-12 text-primary" />
-              </div>
-              <div className="text-center">
-                <h2 className="text-xl md:text-2xl font-semibold mb-1 md:mb-2">Statistics</h2>
-                <p className="text-xs md:text-sm text-muted-foreground">
-                  Analyze your progress and gains
-                </p>
-              </div>
-            </Button>
-          </CardContent>
-        </Card>
+        {NAVIGATION_ITEMS.map((item) => (
+          <NavigationCard
+            key={item.route}
+            icon={item.icon}
+            title={item.title}
+            description={item.description}
+            iconBgColor={item.iconBgColor}
+            iconColor={item.iconColor}
+            onClick={() => router.push(item.route)}
+          />
+        ))}
       </div>
 
       <ThemeToggle />
@@ -136,10 +99,7 @@ export function HomeDashboard() {
       <div className="flex justify-center pt-8 pb-4">
         <Button
           variant="outline"
-          onClick={async () => {
-            await signOut();
-            router.push('/');
-          }}
+          onClick={handleSignOut}
           className="flex items-center space-x-2"
         >
           <LogOut className="h-4 w-4" />

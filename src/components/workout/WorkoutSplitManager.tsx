@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { WorkoutDayCard } from './WorkoutDayCard';
-import { generateId } from '@/lib/workout-utils';
+import { generateId } from '@/lib/workout/utils';
 import { Plus, Save, ArrowLeft } from 'lucide-react';
 
 interface WorkoutSplitManagerProps {

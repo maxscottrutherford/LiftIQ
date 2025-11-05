@@ -13,7 +13,7 @@ import {
   getCurrentExerciseAndSet,
   completeWorkoutSession,
   formatSessionDuration
-} from '@/lib/workout-utils';
+} from '@/lib/workout/utils';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { useAuth } from '@/lib/auth-context';
 import { saveWorkoutSession, updateWorkoutSession, getActiveWorkoutSessions } from '@/lib/supabase/workout-service';

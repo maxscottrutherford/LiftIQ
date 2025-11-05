@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ChevronDown } from 'lucide-react';
 import { ExerciseFormData } from '@/lib/types';
-import { validateExerciseForm, formatRestTime } from '@/lib/workout-utils';
+import { validateExerciseForm, formatRestTime } from '@/lib/workout/utils';
 
 interface ExerciseFormProps {
   onSubmit: (exercise: ExerciseFormData) => void;

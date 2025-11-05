@@ -3,7 +3,7 @@
 import { Exercise } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { formatRepRange, formatSets, formatIntensityMetric, formatRestTime } from '@/lib/workout-utils';
+import { formatRepRange, formatSets, formatIntensityMetric, formatRestTime } from '@/lib/workout/utils';
 import { Edit, Trash2 } from 'lucide-react';
 
 interface ExerciseCardProps {

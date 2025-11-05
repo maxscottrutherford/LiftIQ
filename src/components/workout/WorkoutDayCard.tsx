@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ExerciseCard } from './ExerciseCard';
 import { ExerciseForm } from './ExerciseForm';
-import { formDataToExercise } from '@/lib/workout-utils';
+import { formDataToExercise } from '@/lib/workout/utils';
 import { Plus, Edit2, Trash2, ChevronDown, ChevronUp, Check, X } from 'lucide-react';
 
 interface WorkoutDayCardProps {
