@@ -9,9 +9,9 @@ export interface InputProps
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, step, inputMode, ...props }, ref) => {
     // Auto-detect inputMode for better mobile keyboard experience
-    const getInputMode = (): string | undefined => {
-      // If inputMode is explicitly provided, use it
-      if (inputMode) return inputMode;
+    const getInputMode = (): "url" | "none" | "search" | "text" | "tel" | "email" | "numeric" | "decimal" | undefined => {
+      // If inputMode is explicitly provided, use it (with type assertion since it's from props)
+      if (inputMode) return inputMode as "url" | "none" | "search" | "text" | "tel" | "email" | "numeric" | "decimal";
       
       if (type === 'number') return 'decimal';
       if (type === 'tel') return 'numeric';

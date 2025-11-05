@@ -6,10 +6,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { CongratulationsModal } from '@/components/common/CongratulationsModal';
-import { Dumbbell, Calendar, BarChart3, History } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
+import { Dumbbell, Calendar, BarChart3, History, LogOut } from 'lucide-react';
 
 export function HomeDashboard() {
   const router = useRouter();
+  const { signOut } = useAuth();
   const [showCongratulations, setShowCongratulations] = useState(false);
 
   // Check if user just completed a workout
@@ -129,6 +131,21 @@ export function HomeDashboard() {
       </div>
 
       <ThemeToggle />
+      
+      {/* Sign Out Button */}
+      <div className="flex justify-center pt-8 pb-4">
+        <Button
+          variant="outline"
+          onClick={async () => {
+            await signOut();
+            router.push('/');
+          }}
+          className="flex items-center space-x-2"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Sign Out</span>
+        </Button>
+      </div>
       
       {/* Congratulations Modal */}
       <CongratulationsModal

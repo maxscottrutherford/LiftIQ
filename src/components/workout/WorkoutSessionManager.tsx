@@ -178,6 +178,28 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
     return split.days.find(d => d.id === dayId)?.exercises.find(e => e.id === exerciseLog.exerciseId);
   };
 
+  // Calculate remaining warmup sets before working sets
+  const getRemainingWarmupSets = (): number | null => {
+    if (!currentExercise || !currentSet || currentSet.type !== 'warmup') return null;
+    
+    // Find the first working set index
+    const firstWorkingSetIndex = currentExercise.sets.findIndex(set => set.type === 'working');
+    if (firstWorkingSetIndex === -1) return null; // No working sets
+    
+    // Count how many warmup sets are before the first working set
+    const totalWarmupSets = firstWorkingSetIndex;
+    
+    // Count how many warmup sets are completed (before the first working set)
+    const completedWarmupSets = currentExercise.sets
+      .slice(0, firstWorkingSetIndex)
+      .filter(set => set.completed).length;
+    
+    // Calculate remaining (including current set if not completed)
+    const remaining = totalWarmupSets - completedWarmupSets;
+    
+    return remaining > 0 ? remaining : null;
+  };
+
   // Get most recent working set data for current exercise
   const getMostRecentWorkingSet = (exerciseId: string) => {
     // Find the most recent session for this split/day
@@ -427,6 +449,11 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
               <p className="text-sm text-muted-foreground">
                 Set {currentSet.setNumber} of {currentExercise.sets.length} • {currentSet.type === 'warmup' ? 'Warmup' : 'Working'}
               </p>
+              {currentSet.type === 'warmup' && getRemainingWarmupSets() !== null && (
+                <p className="text-xs text-muted-foreground text-center sm:text-left">
+                  {getRemainingWarmupSets()} warmup set{getRemainingWarmupSets() !== 1 ? 's' : ''} remaining before working sets
+                </p>
+              )}
               <div className="flex gap-2 flex-wrap py-1 justify-center">
                 {originalExercise?.repRange && (
                   <div className="text-xs bg-secondary/10 px-2 py-1 rounded-md text-center">
