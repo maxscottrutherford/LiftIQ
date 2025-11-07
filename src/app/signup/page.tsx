@@ -57,7 +57,7 @@ export default function SignUp() {
   }
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen relative z-10" style={{ backgroundColor: 'transparent' }}>
       <ThemeToggle />
       
       <div className="flex items-center justify-center py-8 px-4">

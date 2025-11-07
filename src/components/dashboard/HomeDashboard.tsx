@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { CongratulationsModal } from '@/components/common/CongratulationsModal';
 import { NavigationCard } from './shared/NavigationCard';
-import { WorkoutPlanningAssistant } from './shared/WorkoutPlanningAssistant';
 import { useAuth } from '@/lib/auth-context';
 import { useWorkoutCompletion } from '@/hooks/useWorkoutCompletion';
 import { Dumbbell, Calendar, BarChart3, History, LogOut, Sparkles } from 'lucide-react';
@@ -42,7 +41,7 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
     icon: Sparkles,
     title: 'AI Workout Planner',
     description: 'Get personalized workout plans',
-    route: '#ai-planner',
+    route: '/dashboard/ai-planner',
     iconBgColor: 'bg-accent/10',
     iconColor: 'text-accent',
   },
@@ -68,7 +67,6 @@ export function HomeDashboard() {
   const router = useRouter();
   const { signOut } = useAuth();
   const { showCongratulations, setShowCongratulations } = useWorkoutCompletion();
-  const [showAssistant, setShowAssistant] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -76,11 +74,7 @@ export function HomeDashboard() {
   };
 
   const handleNavigationClick = (route: string) => {
-    if (route === '#ai-planner') {
-      setShowAssistant(true);
-    } else {
-      router.push(route);
-    }
+    router.push(route);
   };
 
   return (
@@ -130,12 +124,6 @@ export function HomeDashboard() {
       <CongratulationsModal
         isOpen={showCongratulations}
         onClose={() => setShowCongratulations(false)}
-      />
-
-      {/* AI Workout Planning Assistant */}
-      <WorkoutPlanningAssistant
-        isOpen={showAssistant}
-        onClose={() => setShowAssistant(false)}
       />
     </div>
   );

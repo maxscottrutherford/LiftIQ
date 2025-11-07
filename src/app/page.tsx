@@ -5,7 +5,7 @@ import { Dumbbell, TrendingUp, Calendar, Target } from "lucide-react"
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-background py-8">
+    <main className="min-h-screen py-8 relative z-10" style={{ backgroundColor: 'transparent' }}>
       {/* Theme Toggle */}
       <ThemeToggle />
       

@@ -5,6 +5,7 @@ import { Suspense } from 'react';
 import { ThemeProvider } from "@/lib/theme-context";
 import { AuthProvider } from "@/lib/auth-context";
 import { ScrollToTop } from "@/components/common/ScrollToTop";
+import { AnimatedBackground } from "@/components/common/AnimatedBackground";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -75,6 +76,7 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <AuthProvider>
+            <AnimatedBackground />
             <Suspense fallback={null}>
               <ScrollToTop />
             </Suspense>

@@ -60,7 +60,9 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground relative;
+    background: hsl(var(--background) / 0.8);
+    backdrop-filter: blur(0.5px);
     /* Support iOS safe areas */
     padding-bottom: env(safe-area-inset-bottom, 0px);
     padding-left: env(safe-area-inset-left, 0px);
@@ -154,4 +156,58 @@
       scroll-behavior: auto !important;
     }
   }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes float-around {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(40px, -400px) scale(1.05);
+  }
+  50% {
+    transform: translate(-30px, 500px) scale(0.95);
+  }
+  75% {
+    transform: translate(50px, -350px) scale(1.02);
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@keyframes float-around-reverse {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(-40px, 250px) scale(0.95);
+  }
+  50% {
+    transform: translate(30px, -500px) scale(1.05);
+  }
+  75% {
+    transform: translate(-50px, 200px) scale(0.98);
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+
+.animate-float-around {
+  animation: float-around 35s ease-in-out infinite;
+}
+
+.animate-float-around-reverse {
+  animation: float-around-reverse 38s ease-in-out infinite;
 }

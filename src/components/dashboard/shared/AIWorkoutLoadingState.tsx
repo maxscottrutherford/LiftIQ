@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Dumbbell } from 'lucide-react';
 
 interface LoadingStep {
   label: string;
@@ -55,59 +55,90 @@ export function AIWorkoutLoadingState() {
   const overallProgress = Math.min(((currentStep + progress / 100) / LOADING_STEPS.length) * 100, 100);
 
   return (
-    <div className="flex justify-start">
-      <div className="bg-muted rounded-lg p-4 w-full max-w-md space-y-4">
-        {/* Header */}
-        <div className="flex items-center gap-2">
+    <div className="fixed inset-0 bg-background flex flex-col items-center justify-center z-50 overflow-hidden">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+      </div>
+
+      {/* Main Content */}
+      <div className="relative z-10 w-full max-w-3xl px-4 sm:px-6 space-y-8">
+        {/* Icon and Title */}
+        <div className="flex flex-col items-center space-y-4">
           <div className="relative">
-            <Sparkles className="h-4 w-4 text-primary animate-pulse" />
-            <Loader2 className="h-4 w-4 text-primary animate-spin absolute inset-0" />
+            <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse"></div>
+            <div className="relative bg-primary/10 rounded-full p-6 border-2 border-primary/30">
+              <Sparkles className="h-12 w-12 sm:h-16 sm:w-16 text-primary animate-pulse" />
+            </div>
           </div>
-          <span className="text-sm font-medium text-foreground">Creating your workout plan...</span>
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
+              Creating Your Workout Plan
+            </h2>
+            <p className="text-sm sm:text-base text-muted-foreground">
+              Our AI is crafting a personalized program just for you
+            </p>
+          </div>
         </div>
 
-        {/* Overall Progress Bar */}
-        <div className="space-y-1">
+        {/* Overall Progress */}
+        <div className="space-y-3">
           <div className="flex justify-between items-center">
-            <span className="text-xs text-muted-foreground">Overall Progress</span>
-            <span className="text-xs font-medium text-primary">{Math.min(Math.round(overallProgress), 100)}%</span>
+            <span className="text-sm sm:text-base font-medium text-foreground">Overall Progress</span>
+            <span className="text-lg sm:text-xl font-bold text-primary">{Math.min(Math.round(overallProgress), 100)}%</span>
           </div>
-          <div className="w-full h-2 bg-muted-foreground/20 rounded-full overflow-hidden">
+          <div className="w-full h-4 sm:h-5 bg-muted-foreground/20 rounded-full overflow-hidden shadow-inner">
             <div
-              className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+              className="h-full bg-gradient-to-r from-primary via-accent to-primary rounded-full transition-all duration-300 ease-out shadow-lg relative overflow-hidden"
               style={{ width: `${Math.min(overallProgress, 100)}%` }}
-            />
+            >
+              <div 
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                style={{
+                  animation: 'shimmer 2s infinite'
+                }}
+              ></div>
+            </div>
           </div>
         </div>
 
         {/* Current Step */}
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="flex justify-between items-center">
-            <span className="text-xs text-muted-foreground">{LOADING_STEPS[currentStep]?.label || 'Processing...'}</span>
-            <span className="text-xs font-medium text-accent">{Math.min(Math.round(progress), 100)}%</span>
+            <span className="text-base sm:text-lg text-foreground font-medium">{LOADING_STEPS[currentStep]?.label || 'Processing...'}</span>
+            <span className="text-base sm:text-lg font-bold text-accent">{Math.min(Math.round(progress), 100)}%</span>
           </div>
-          <div className="w-full h-1.5 bg-muted-foreground/20 rounded-full overflow-hidden">
+          <div className="w-full h-3 bg-muted-foreground/20 rounded-full overflow-hidden shadow-inner">
             <div
-              className="h-full bg-accent rounded-full transition-all duration-150 ease-out"
+              className="h-full bg-gradient-to-r from-accent to-primary rounded-full transition-all duration-150 ease-out"
               style={{ width: `${Math.min(progress, 100)}%` }}
             />
           </div>
         </div>
 
         {/* Step Indicators */}
-        <div className="flex gap-1.5 pt-1">
+        <div className="flex gap-2 sm:gap-3 pt-4">
           {LOADING_STEPS.map((_, index) => (
             <div
               key={index}
-              className={`h-1 flex-1 rounded-full transition-all duration-300 ${
+              className={`h-2 sm:h-2.5 flex-1 rounded-full transition-all duration-300 ${
                 index < currentStep
-                  ? 'bg-primary'
+                  ? 'bg-primary shadow-lg shadow-primary/50'
                   : index === currentStep
-                  ? 'bg-accent'
+                  ? 'bg-accent shadow-lg shadow-accent/50 animate-pulse'
                   : 'bg-muted-foreground/20'
               }`}
             />
           ))}
+        </div>
+
+        {/* Decorative Elements */}
+        <div className="flex justify-center items-center gap-4 pt-4 opacity-30">
+          <Dumbbell className="h-6 w-6 text-primary animate-bounce" style={{ animationDelay: '0s' }} />
+          <Dumbbell className="h-5 w-5 text-accent animate-bounce" style={{ animationDelay: '0.3s' }} />
+          <Dumbbell className="h-6 w-6 text-primary animate-bounce" style={{ animationDelay: '0.6s' }} />
         </div>
       </div>
     </div>
