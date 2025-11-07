@@ -18,14 +18,12 @@ import { EmptyState } from './shared/EmptyState';
 import { useAuth } from '@/lib/auth-context';
 import { useWorkoutData } from '@/hooks/workout/useWorkoutData';
 import { useActiveSession } from '@/hooks/workout/useActiveSession';
-import { convertFreestyleToWorkoutSession } from '@/lib/workout/utils';
 import { navigateToDashboard, setWorkoutCompletedFlag } from '@/lib/navigation-utils';
 import { Plus } from 'lucide-react';
 import { 
   saveWorkoutSplit, 
   updateWorkoutSplit, 
   deleteWorkoutSplit,
-  saveWorkoutSession,
   deleteWorkoutSession,
   getActiveWorkoutSessions,
   deleteWorkoutSession as deleteWorkoutSessionFromDB
@@ -112,14 +110,9 @@ export function WorkoutSplitDashboard({ initialView = 'splits' }: WorkoutSplitDa
   };
 
   const handleCompleteSession = async (session: WorkoutSession) => {
-    const saved = await saveWorkoutSession(session);
-    if (saved) {
-      setWorkoutCompletedFlag();
-      navigateToDashboard();
-    } else {
-      setActiveSession(null);
-      setCurrentView('splits');
-    }
+    // Session is already saved in WorkoutSessionManager, just navigate
+    setWorkoutCompletedFlag();
+    navigateToDashboard();
   };
 
   const handleCancelSession = () => {
@@ -143,20 +136,13 @@ export function WorkoutSplitDashboard({ initialView = 'splits' }: WorkoutSplitDa
   };
 
   const handleFreestyleComplete = async (workoutName: string, sets: any[], notes?: string, startedAt?: Date) => {
+    // Session is already saved in FreestyleWorkoutManager, just refresh and navigate
     try {
-      const session = convertFreestyleToWorkoutSession(workoutName, sets, notes, startedAt);
-      const savedSession = await saveWorkoutSession(session);
-      
-      if (savedSession) {
-        await refreshSessions();
-        navigateToDashboard();
-      } else {
-        console.error('Failed to save freestyle workout');
-        // TODO: Show error message to user
-      }
+      await refreshSessions();
+      navigateToDashboard();
     } catch (error) {
-      console.error('Error saving freestyle workout:', error);
-      // TODO: Show error message to user
+      console.error('Error refreshing sessions:', error);
+      navigateToDashboard();
     }
   };
 
