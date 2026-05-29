@@ -6,7 +6,7 @@ import confetti from 'canvas-confetti';
  * 
  * This function should only be called on the client side (components are marked 'use client')
  */
-export function celebrateWorkoutComplete() {
+export function celebrate() {
   // Early return if not in browser (safety check)
   if (typeof window === 'undefined') return;
 

@@ -1,20 +1,22 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { CheckCircle } from 'lucide-react';
-import { celebrate } from '@/lib/confetti';
+import { celebrate } from "@/lib/confetti";
+import { useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { CheckCircle } from "lucide-react";
+import { Button } from "../ui/button";
 
-interface CongratulationsModalProps {
+interface PersonalRecordModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-export function CongratulationsModal({ isOpen, onClose }: CongratulationsModalProps) {
+export function PersonalRecordModal({
+  isOpen,
+  onClose,
+}: PersonalRecordModalProps) {
   useEffect(() => {
     if (isOpen) {
-      // Trigger confetti when modal opens
       celebrate();
     }
   }, [isOpen]);
@@ -22,11 +24,11 @@ export function CongratulationsModal({ isOpen, onClose }: CongratulationsModalPr
   if (!isOpen) return null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
       onClick={onClose}
     >
-      <Card 
+      <Card
         className="w-full max-w-md border-2 border-primary/20 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
@@ -36,20 +38,16 @@ export function CongratulationsModal({ isOpen, onClose }: CongratulationsModalPr
               <CheckCircle className="h-16 w-16 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-3xl font-bold">Congratulations!</CardTitle>
+          <CardTitle className="text-3xl font-bold">Great Job!</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-center text-lg text-muted-foreground">
-            Amazing work! You&apos;ve completed your workout.
+            I see you working! You just got a new PR!
           </p>
           <p className="text-center text-sm text-muted-foreground">
-            Keep up the great progress and stay consistent!
+            Keepo doing what you're doing and you'll keep setting new records!
           </p>
-          <Button
-            onClick={onClose}
-            className="w-full"
-            size="lg"
-          >
+          <Button onClick={onClose} className="w-full" size="lg">
             Awesome!
           </Button>
         </CardContent>
@@ -57,4 +55,3 @@ export function CongratulationsModal({ isOpen, onClose }: CongratulationsModalPr
     </div>
   );
 }
-
