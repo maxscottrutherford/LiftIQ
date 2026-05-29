@@ -9,6 +9,7 @@ src/
 ├── components/
 │   ├── common/              # Shared/common components
 │   │   ├── CongratulationsModal.tsx
+│   │   ├── PersonalRecordModal.tsx
 │   │   ├── LoadingSpinner.tsx
 │   │   ├── ScrollToTop.tsx
 │   │   └── ThemeToggle.tsx
@@ -66,6 +67,7 @@ src/
 
 1. **Common Components** (`components/common/`): Shared components used across multiple features
    - `CongratulationsModal`: Celebration modal after workout completion
+   - `PersonalRecordModal`: Celebration when a working set beats your prior max for that exercise
    - `LoadingSpinner`: Reusable loading component
    - `ScrollToTop`: Scroll-to-top functionality
    - `ThemeToggle`: Theme switching component

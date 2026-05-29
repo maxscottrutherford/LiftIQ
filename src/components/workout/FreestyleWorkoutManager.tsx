@@ -11,7 +11,8 @@ import { useAuth } from '@/lib/auth-context';
 import { ArrowLeft, Plus, Save, Trash2, CheckCircle, Edit2, ChevronDown, ChevronUp, Play } from 'lucide-react';
 import { saveWorkoutSession, updateWorkoutSession, getActiveWorkoutSessions } from '@/lib/supabase/workout-service';
 import { WorkoutSession, ExerciseLog, SetLog } from '@/lib/types';
-import { generateId } from '@/lib/workout/utils';
+import { generateId, wouldBePersonalRecordForFreestyleSet } from '@/lib/workout/utils';
+import { PersonalRecordModal } from '@/components/common/PersonalRecordModal';
 
 interface FreestyleSet {
   id: string;
@@ -27,9 +28,10 @@ interface FreestyleSet {
 interface FreestyleWorkoutManagerProps {
   onComplete: (workoutName: string, sets: FreestyleSet[], notes?: string, startedAt?: Date) => void;
   onCancel: () => void;
+  previousSessions?: WorkoutSession[];
 }
 
-export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorkoutManagerProps) {
+export function FreestyleWorkoutManager({ onComplete, onCancel, previousSessions = [] }: FreestyleWorkoutManagerProps) {
   const { user } = useAuth();
   const userId = user?.id || 'anonymous';
   
@@ -107,6 +109,10 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
   const [expandedExercises, setExpandedExercises] = useState<Set<string>>(new Set()); // Track which exercises are expanded
   const [showActiveWorkoutAlert, setShowActiveWorkoutAlert] = useState(false);
   const [activeWorkoutInfo, setActiveWorkoutInfo] = useState<{ workoutName: string; startedAt: Date; setCount: number } | null>(null);
+  const [prCelebration, setPrCelebration] = useState<{
+    exerciseName: string;
+    weight: number;
+  } | null>(null);
 
   // Form state for adding/editing sets
   const [currentExerciseName, setCurrentExerciseName] = useState('');
@@ -144,15 +150,40 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
     setEditingSetId(null);
   };
 
+  const maybeCelebratePersonalRecord = (
+    weight: number | undefined,
+    setType: 'warmup' | 'working',
+    exerciseName: string,
+    excludeSetId?: string
+  ) => {
+    if (setType !== 'working' || weight == null || weight <= 0) return;
+
+    if (
+      wouldBePersonalRecordForFreestyleSet(
+        weight,
+        exerciseName,
+        sets,
+        previousSessions,
+        { excludeSetId, currentSessionId: sessionId }
+      )
+    ) {
+      setPrCelebration({ exerciseName, weight });
+    }
+  };
+
   const handleAddSet = () => {
     if (!currentExerciseName.trim() || !currentReps) return;
 
     const exerciseName = currentExerciseName.trim();
+    const weight = currentWeight ? parseFloat(currentWeight) : undefined;
+
+    maybeCelebratePersonalRecord(weight, currentSetType, exerciseName);
+
     const newSet: FreestyleSet = {
       id: generateId(),
       exerciseName,
       setType: currentSetType,
-      weight: currentWeight ? parseFloat(currentWeight) : undefined,
+      weight,
       reps: parseInt(currentReps) || 0,
       rpe: currentRpe ? parseInt(currentRpe) : undefined,
       rir: currentRir ? parseInt(currentRir) : undefined,
@@ -184,11 +215,16 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
   const handleUpdateSet = () => {
     if (!editingSetId || !currentExerciseName.trim() || !currentReps) return;
 
+    const exerciseName = currentExerciseName.trim();
+    const weight = currentWeight ? parseFloat(currentWeight) : undefined;
+
+    maybeCelebratePersonalRecord(weight, currentSetType, exerciseName, editingSetId);
+
     const updatedSet: FreestyleSet = {
       id: editingSetId,
-      exerciseName: currentExerciseName.trim(),
+      exerciseName,
       setType: currentSetType,
-      weight: currentWeight ? parseFloat(currentWeight) : undefined,
+      weight,
       reps: parseInt(currentReps) || 0,
       rpe: currentRpe ? parseInt(currentRpe) : undefined,
       rir: currentRir ? parseInt(currentRir) : undefined,
@@ -820,6 +856,12 @@ export function FreestyleWorkoutManager({ onComplete, onCancel }: FreestyleWorko
       )}
 
       <ThemeToggle />
+      <PersonalRecordModal
+        isOpen={prCelebration !== null}
+        onClose={() => setPrCelebration(null)}
+        exerciseName={prCelebration?.exerciseName}
+        weight={prCelebration?.weight}
+      />
     </div>
   );
 }

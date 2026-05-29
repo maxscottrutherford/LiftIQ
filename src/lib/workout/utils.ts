@@ -331,6 +331,102 @@ export const validateSetLogForm = (formData: SetLogFormData): string[] => {
   return errors;
 };
 
+function exerciseLogMatches(
+  log: ExerciseLog,
+  exerciseId: string,
+  exerciseName: string
+): boolean {
+  if (log.exerciseId === exerciseId) return true;
+  return (
+    log.exerciseName.trim().toLowerCase() === exerciseName.trim().toLowerCase()
+  );
+}
+
+/** Highest completed working-set weight for an exercise across sessions. */
+export function getMaxWorkingWeightForExercise(
+  sessions: WorkoutSession[],
+  exerciseId: string,
+  exerciseName: string
+): number {
+  let max = 0;
+  for (const session of sessions) {
+    for (const log of session.exerciseLogs) {
+      if (!exerciseLogMatches(log, exerciseId, exerciseName)) continue;
+      for (const set of log.sets) {
+        if (
+          set.type === 'working' &&
+          set.completed &&
+          set.weight != null &&
+          set.weight > max
+        ) {
+          max = set.weight;
+        }
+      }
+    }
+  }
+  return max;
+}
+
+/** True when weight beats the prior best for this exercise (requires existing history). */
+export function wouldBePersonalRecord(
+  weight: number,
+  exerciseId: string,
+  exerciseName: string,
+  currentSession: WorkoutSession,
+  previousSessions: WorkoutSession[]
+): boolean {
+  if (weight <= 0 || !Number.isFinite(weight)) return false;
+
+  const otherSessions = previousSessions.filter((s) => s.id !== currentSession.id);
+  const baseline = Math.max(
+    getMaxWorkingWeightForExercise(otherSessions, exerciseId, exerciseName),
+    getMaxWorkingWeightForExercise([currentSession], exerciseId, exerciseName)
+  );
+
+  return baseline > 0 && weight > baseline;
+}
+
+/** Freestyle set shape used for in-progress PR checks. */
+export interface FreestyleSetForPR {
+  id: string;
+  exerciseName: string;
+  setType: 'warmup' | 'working';
+  weight?: number;
+}
+
+/** PR check when logging a set in freestyle mode (matches by exercise name). */
+export function wouldBePersonalRecordForFreestyleSet(
+  weight: number,
+  exerciseName: string,
+  currentSets: FreestyleSetForPR[],
+  previousSessions: WorkoutSession[],
+  options?: { excludeSetId?: string; currentSessionId?: string | null }
+): boolean {
+  if (weight <= 0 || !Number.isFinite(weight)) return false;
+
+  const otherSessions = options?.currentSessionId
+    ? previousSessions.filter((s) => s.id !== options.currentSessionId)
+    : previousSessions;
+
+  const historicalMax = getMaxWorkingWeightForExercise(
+    otherSessions,
+    '',
+    exerciseName
+  );
+
+  const normalized = exerciseName.trim().toLowerCase();
+  let currentWorkoutMax = 0;
+  for (const set of currentSets) {
+    if (options?.excludeSetId && set.id === options.excludeSetId) continue;
+    if (set.setType !== 'working' || set.weight == null) continue;
+    if (set.exerciseName.trim().toLowerCase() !== normalized) continue;
+    if (set.weight > currentWorkoutMax) currentWorkoutMax = set.weight;
+  }
+
+  const baseline = Math.max(historicalMax, currentWorkoutMax);
+  return baseline > 0 && weight > baseline;
+}
+
 // Freestyle Workout Utilities
 
 interface FreestyleSet {

@@ -12,9 +12,11 @@ import {
   calculateSessionProgress, 
   getCurrentExerciseAndSet,
   completeWorkoutSession,
-  formatSessionDuration
+  formatSessionDuration,
+  wouldBePersonalRecord,
 } from '@/lib/workout/utils';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
+import { PersonalRecordModal } from '@/components/common/PersonalRecordModal';
 import { useAuth } from '@/lib/auth-context';
 import { saveWorkoutSession, updateWorkoutSession, getActiveWorkoutSessions } from '@/lib/supabase/workout-service';
 import { 
@@ -90,6 +92,10 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
   const [sessionNotes, setSessionNotes] = useState('');
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [lastUndoneSetData, setLastUndoneSetData] = useState<Partial<SetLog> | null>(null);
+  const [prCelebration, setPrCelebration] = useState<{
+    exerciseName: string;
+    weight: number;
+  } | null>(null);
 
   // Save or update session in database when first set is completed or when session changes
   useEffect(() => {
@@ -521,6 +527,28 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
               exercise={currentExercise}
               restTimeMinutes={originalExercise?.restTime || 2}
               onComplete={(setData) => {
+                const completingWorkingSet =
+                  currentSet?.type === 'working' &&
+                  setData.weight != null &&
+                  setData.weight > 0;
+
+                if (
+                  completingWorkingSet &&
+                  session &&
+                  wouldBePersonalRecord(
+                    setData.weight!,
+                    currentExercise!.exerciseId,
+                    currentExercise!.exerciseName,
+                    session,
+                    previousSessions
+                  )
+                ) {
+                  setPrCelebration({
+                    exerciseName: currentExercise!.exerciseName,
+                    weight: setData.weight!,
+                  });
+                }
+
                 handleCompleteSet(
                   currentPosition!.exerciseIndex, 
                   currentPosition!.setIndex, 
@@ -612,6 +640,12 @@ export function WorkoutSessionManager({ split, dayId, onComplete, onCancel, prev
         </CardContent>
       </Card>
       <ThemeToggle />
+      <PersonalRecordModal
+        isOpen={prCelebration !== null}
+        onClose={() => setPrCelebration(null)}
+        exerciseName={prCelebration?.exerciseName}
+        weight={prCelebration?.weight}
+      />
     </div>
   );
 }

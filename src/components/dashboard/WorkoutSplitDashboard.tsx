@@ -208,6 +208,7 @@ export function WorkoutSplitDashboard({ initialView = 'splits' }: WorkoutSplitDa
       <FreestyleWorkoutManager
         onComplete={handleFreestyleComplete}
         onCancel={handleFreestyleCancel}
+        previousSessions={sessions}
       />
     );
   }

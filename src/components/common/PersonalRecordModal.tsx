@@ -9,11 +9,15 @@ import { Button } from "../ui/button";
 interface PersonalRecordModalProps {
   isOpen: boolean;
   onClose: () => void;
+  exerciseName?: string;
+  weight?: number;
 }
 
 export function PersonalRecordModal({
   isOpen,
   onClose,
+  exerciseName,
+  weight,
 }: PersonalRecordModalProps) {
   useEffect(() => {
     if (isOpen) {
@@ -22,6 +26,8 @@ export function PersonalRecordModal({
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  const hasDetails = exerciseName && weight != null && weight > 0;
 
   return (
     <div
@@ -38,14 +44,23 @@ export function PersonalRecordModal({
               <CheckCircle className="h-16 w-16 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-3xl font-bold">Great Job!</CardTitle>
+          <CardTitle className="text-3xl font-bold">New Personal Record!</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-center text-lg text-muted-foreground">
-            I see you working! You just got a new PR!
-          </p>
+          {hasDetails ? (
+            <p className="text-center text-lg text-muted-foreground">
+              You hit{" "}
+              <span className="font-semibold text-foreground">{weight} lbs</span> on{" "}
+              <span className="font-semibold text-foreground">{exerciseName}</span>
+              — your heaviest working set yet.
+            </p>
+          ) : (
+            <p className="text-center text-lg text-muted-foreground">
+              You just set a new personal record. Keep pushing!
+            </p>
+          )}
           <p className="text-center text-sm text-muted-foreground">
-            Keepo doing what you're doing and you'll keep setting new records!
+            Keep doing what you&apos;re doing and you&apos;ll keep setting new records!
           </p>
           <Button onClick={onClose} className="w-full" size="lg">
             Awesome!
